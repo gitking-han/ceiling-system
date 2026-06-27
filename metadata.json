@@ -1,0 +1,6 @@
+{
+  "name": "Factory Production Management System",
+  "description": "A complete production, inventory, and sales management ERP for a plate manufacturing factory, featuring formula management, wet and dry plate tracking, customer ledger, expense logging, invoice printing, and reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

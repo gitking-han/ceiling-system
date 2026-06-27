@@ -1,0 +1,600 @@
+import React, { useState } from 'react';
+import {
+  Package,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight,
+  Search,
+  Filter,
+  Trash2,
+  Edit2,
+  History,
+  AlertTriangle,
+  X,
+  FileCheck
+} from 'lucide-react';
+import { db, adjustMaterialStock } from '../utils/api';
+import { RawMaterial, InventoryTransaction } from '../types';
+
+export default function Inventory() {
+  const [materials, setMaterials] = useState<RawMaterial[]>(db.getMaterials());
+  const [transactions, setTransactions] = useState<InventoryTransaction[]>(db.getTransactions());
+
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterLowStock, setFilterLowStock] = useState(false);
+
+  // Modal and Form States
+  const [showAddMaterialModal, setShowAddMaterialModal] = useState(false);
+  const [showRestockModal, setShowRestockModal] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null);
+
+  // New Material form state
+  const [newMatName, setNewMatName] = useState('');
+  const [newMatUnit, setNewMatUnit] = useState('kg');
+  const [newMatQuantity, setNewMatQuantity] = useState(0);
+  const [newMatCost, setNewMatCost] = useState(0);
+  const [newMatThreshold, setNewMatThreshold] = useState(100);
+
+  // Restock form state
+  const [restockQty, setRestockQty] = useState(0);
+  const [restockCost, setRestockCost] = useState(0);
+  const [restockNotes, setRestockNotes] = useState('');
+  const [restockDate, setRestockDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Edit Material state
+  const [editingMaterial, setEditingMaterial] = useState<RawMaterial | null>(null);
+
+  // Notifications/Toasts helper
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // Add a brand new raw material type
+  const handleCreateMaterial = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMatName.trim()) return;
+
+    // Check for duplicate name
+    if (materials.some(m => m.name.toLowerCase() === newMatName.trim().toLowerCase())) {
+      showToast('error', 'A raw material with this name already exists.');
+      return;
+    }
+
+    const newMaterial: RawMaterial = {
+      id: 'm_' + Math.random().toString(36).substr(2, 9),
+      name: newMatName.trim(),
+      quantity: newMatQuantity,
+      unit: newMatUnit,
+      costPerUnit: newMatCost,
+      minThreshold: newMatThreshold,
+      updatedAt: restockDate
+    };
+
+    const updatedMaterials = [...materials, newMaterial];
+    db.saveMaterials(updatedMaterials);
+    setMaterials(updatedMaterials);
+
+    // If initial quantity is greater than zero, write an 'in' transaction
+    if (newMatQuantity > 0) {
+      const txs = db.getTransactions();
+      const newTx: InventoryTransaction = {
+        id: 'tx_' + Math.random().toString(36).substr(2, 9),
+        materialId: newMaterial.id,
+        materialName: newMaterial.name,
+        type: 'in',
+        quantity: newMatQuantity,
+        cost: newMatQuantity * newMatCost,
+        date: restockDate,
+        notes: 'Initial stock setup'
+      };
+      txs.push(newTx);
+      db.saveTransactions(txs);
+      setTransactions(txs);
+    }
+
+    // Reset Form
+    setNewMatName('');
+    setNewMatUnit('kg');
+    setNewMatQuantity(0);
+    setNewMatCost(0);
+    setNewMatThreshold(100);
+    setShowAddMaterialModal(false);
+    showToast('success', `${newMaterial.name} created successfully.`);
+  };
+
+  // Edit material threshold or base cost
+  const handleUpdateMaterial = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMaterial) return;
+
+    const updated = materials.map(m => m.id === editingMaterial.id ? editingMaterial : m);
+    db.saveMaterials(updated);
+    setMaterials(updated);
+    setEditingMaterial(null);
+    showToast('success', 'Material parameters updated.');
+  };
+
+  // Delete material type
+  const handleDeleteMaterial = (id: string, name: string) => {
+    if (confirm(`Are you sure you want to delete ${name}? This will remove the material from inventory list.`)) {
+      const updated = materials.filter(m => m.id !== id);
+      db.saveMaterials(updated);
+      setMaterials(updated);
+      showToast('success', `${name} deleted from materials list.`);
+    }
+  };
+
+  // Handle restock (Add Stock)
+  const handleRestock = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMaterial || restockQty <= 0) return;
+
+    adjustMaterialStock(
+      selectedMaterial.id,
+      restockQty,
+      'in',
+      restockCost,
+      restockDate,
+      restockNotes || `Restocked ${restockQty} ${selectedMaterial.unit}`
+    );
+
+    // Refresh state from DB
+    setMaterials(db.getMaterials());
+    setTransactions(db.getTransactions());
+
+    // Reset
+    setRestockQty(0);
+    setRestockCost(0);
+    setRestockNotes('');
+    setShowRestockModal(false);
+    setSelectedMaterial(null);
+    showToast('success', `Stock increased for ${selectedMaterial.name}.`);
+  };
+
+  // Filter materials based on search & low stock toggle
+  const filteredMaterials = materials.filter(m => {
+    const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesLowStock = filterLowStock ? m.quantity <= m.minThreshold : true;
+    return matchesSearch && matchesLowStock;
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Toast Alert */}
+      {toast && (
+        <div className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl border flex items-center gap-2 text-xs font-semibold shadow-lg ${
+          toast.type === 'success'
+            ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+            : 'bg-rose-50 border-rose-100 text-rose-800'
+        }`}>
+          <FileCheck size={16} />
+          <span>{toast.message}</span>
+        </div>
+      )}
+
+      {/* Top Controls Header */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+        {/* Search & Low Stock Toggle */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
+          <div className="relative flex-1">
+            <Search className="absolute inset-y-0 left-3 my-auto text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search raw materials..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-100 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800"
+            />
+          </div>
+          <button
+            onClick={() => setFilterLowStock(!filterLowStock)}
+            className={`flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold border transition-all ${
+              filterLowStock
+                ? 'bg-amber-50 border-amber-200 text-amber-700'
+                : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Filter size={14} />
+            {filterLowStock ? 'Showing Low Stock' : 'Filter Low Stock'}
+          </button>
+        </div>
+
+        {/* Create Material Button */}
+        <button
+          onClick={() => setShowAddMaterialModal(true)}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
+        >
+          <Plus size={14} />
+          Create Material Type
+        </button>
+      </div>
+
+      {/* Grid Layout for Materials and History */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Materials Table Card */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-display font-bold text-slate-800 text-sm">Material Stock Ledger</h3>
+              <p className="text-[11px] text-slate-400 font-medium">Real-time inventory ledger quantities and costs</p>
+            </div>
+            <span className="text-[10px] font-mono font-bold bg-slate-50 border border-slate-100 text-slate-500 px-2 py-1 rounded">
+              {filteredMaterials.length} materials listed
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                  <th className="py-3 px-2">Material Name</th>
+                  <th className="py-3 px-2 text-right">Available Qty</th>
+                  <th className="py-3 px-2 text-right">Unit Cost</th>
+                  <th className="py-3 px-2 text-right">Stock Value</th>
+                  <th className="py-3 px-2 text-center">Alert Limit</th>
+                  <th className="py-3 px-2 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {filteredMaterials.length > 0 ? (
+                  filteredMaterials.map((mat) => {
+                    const isLow = mat.quantity <= mat.minThreshold;
+                    const stockValue = mat.quantity * mat.costPerUnit;
+                    return (
+                      <tr key={mat.id} className={`hover:bg-slate-50/50 transition-colors ${isLow ? 'bg-rose-50/20' : ''}`}>
+                        <td className="py-3 px-2 font-semibold">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-1.5 h-1.5 rounded-full ${isLow ? 'bg-rose-500 animate-pulse' : 'bg-slate-300'}`} />
+                            <div>
+                              <p className="text-slate-800">{mat.name}</p>
+                              {isLow && <span className="text-[9px] text-rose-500 font-bold uppercase tracking-wider">Critical Low</span>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-2 text-right font-mono font-bold">
+                          <span className={isLow ? 'text-rose-600 font-extrabold' : 'text-slate-800'}>
+                            {mat.quantity.toLocaleString()}
+                          </span>{' '}
+                          <span className="text-[10px] font-normal text-slate-400">{mat.unit}</span>
+                        </td>
+                        <td className="py-3 px-2 text-right font-mono text-slate-500">
+                          Rs. {mat.costPerUnit.toFixed(2)}
+                        </td>
+                        <td className="py-3 px-2 text-right font-mono font-semibold text-slate-800">
+                          Rs. {Math.round(stockValue).toLocaleString()}
+                        </td>
+                        <td className="py-3 px-2 text-center font-mono text-slate-400">
+                          {mat.minThreshold} {mat.unit}
+                        </td>
+                        <td className="py-3 px-2">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => {
+                                setSelectedMaterial(mat);
+                                setRestockCost(0);
+                                setRestockQty(0);
+                                setShowRestockModal(true);
+                              }}
+                              className="px-2 py-1 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all cursor-pointer"
+                            >
+                              Add Stock
+                            </button>
+                            <button
+                              onClick={() => setEditingMaterial(mat)}
+                              className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-50"
+                              title="Edit Threshold"
+                            >
+                              <Edit2 size={12} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMaterial(mat.id, mat.name)}
+                              className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
+                              title="Delete Material"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-400">
+                      No materials matching search queries found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Recent Transactions Card */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <History size={16} className="text-indigo-600" />
+              <h3 className="font-display font-bold text-slate-800 text-sm">Recent Stock Changes</h3>
+            </div>
+            <span className="text-[9px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded uppercase tracking-wider">
+              Auditable Logs
+            </span>
+          </div>
+
+          <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+            {transactions.length > 0 ? (
+              [...transactions]
+                .reverse()
+                .slice(0, 15)
+                .map((tx) => (
+                  <div key={tx.id} className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 text-xs flex gap-3">
+                    <div className="mt-0.5 shrink-0">
+                      {tx.type === 'in' ? (
+                        <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                          <ArrowUpRight size={14} />
+                        </div>
+                      ) : (
+                        <div className="w-6 h-6 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center">
+                          <ArrowDownRight size={14} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-slate-800">{tx.materialName}</span>
+                        <span className="text-[10px] font-bold font-mono text-slate-400">{tx.date}</span>
+                      </div>
+                      <p className="text-slate-500 mt-1">
+                        {tx.type === 'in' ? '+' : '-'}{tx.quantity.toLocaleString()} {tx.type === 'in' ? 'restocked' : 'consumed'}
+                      </p>
+                      {tx.cost > 0 && (
+                        <p className="text-[10px] text-indigo-600 font-semibold mt-0.5">
+                          Cost: Rs. {tx.cost.toLocaleString()}
+                        </p>
+                      )}
+                      {tx.notes && <p className="text-[10px] text-slate-400 mt-1 italic truncate">"{tx.notes}"</p>}
+                    </div>
+                  </div>
+                ))
+            ) : (
+              <p className="text-center text-xs text-slate-400 py-8">No stock transactions logged yet.</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* MODAL 1: Create New Raw Material */}
+      {showAddMaterialModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg border border-slate-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+              <h3 className="font-display font-bold text-slate-800 text-sm flex items-center gap-2">
+                <Package size={16} className="text-indigo-600" />
+                Add New Raw Material
+              </h3>
+              <button onClick={() => setShowAddMaterialModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateMaterial} className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Material Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newMatName}
+                  onChange={(e) => setNewMatName(e.target.value)}
+                  placeholder="e.g. Premium White Plaster"
+                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Stock Unit</label>
+                  <select
+                    value={newMatUnit}
+                    onChange={(e) => setNewMatUnit(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+                  >
+                    <option value="kg">kg (Kilograms)</option>
+                    <option value="grams">grams (g)</option>
+                    <option value="feet">feet (ft)</option>
+                    <option value="pieces">pieces (pcs)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Min. Alert Threshold</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={newMatThreshold}
+                    onChange={(e) => setNewMatThreshold(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 border-t border-slate-100/50 pt-3">
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Opening Stock Qty</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={newMatQuantity}
+                    onChange={(e) => setNewMatQuantity(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Cost Per Unit (Rs)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={newMatCost}
+                    onChange={(e) => setNewMatCost(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Inward Date</label>
+                <input
+                  type="date"
+                  value={restockDate}
+                  onChange={(e) => setRestockDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-xs tracking-wider uppercase transition-all cursor-pointer"
+              >
+                Create and Seed Material
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: Edit Material Alert Thresholds */}
+      {editingMaterial && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg border border-slate-100 w-full max-w-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+              <h3 className="font-display font-bold text-slate-800 text-sm">
+                Edit Material Configuration
+              </h3>
+              <button onClick={() => setEditingMaterial(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateMaterial} className="p-5 space-y-4 text-xs">
+              <p className="font-semibold text-slate-700">Adjust parameters for: <span className="text-indigo-600 font-bold">{editingMaterial.name}</span></p>
+
+              <div>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Standard Cost (Rs / {editingMaterial.unit})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={editingMaterial.costPerUnit}
+                  onChange={(e) => setEditingMaterial({ ...editingMaterial, costPerUnit: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Minimum Alert Threshold ({editingMaterial.unit})</label>
+                <input
+                  type="number"
+                  required
+                  value={editingMaterial.minThreshold}
+                  onChange={(e) => setEditingMaterial({ ...editingMaterial, minThreshold: parseInt(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-xs transition-all cursor-pointer"
+              >
+                Save Changes
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Inward Restock Quantity */}
+      {showRestockModal && selectedMaterial && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg border border-slate-100 w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+              <h3 className="font-display font-bold text-slate-800 text-sm flex items-center gap-2">
+                <Plus size={16} className="text-indigo-600" />
+                Add Raw Material Stock (Inward)
+              </h3>
+              <button onClick={() => setShowRestockModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleRestock} className="p-5 space-y-4 text-xs">
+              <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
+                <p className="text-slate-700 font-medium">Selected Material: <span className="font-bold text-slate-900">{selectedMaterial.name}</span></p>
+                <p className="text-slate-400 mt-1 font-semibold uppercase text-[10px]">Current Quantity: <span className="font-mono text-indigo-700 font-bold">{selectedMaterial.quantity} {selectedMaterial.unit}</span></p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Restock Qty ({selectedMaterial.unit})</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={restockQty}
+                    onChange={(e) => setRestockQty(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Inward Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={restockDate}
+                    onChange={(e) => setRestockDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Total Procurement Cost (Rs)</label>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={restockCost}
+                  onChange={(e) => setRestockCost(parseFloat(e.target.value) || 0)}
+                  placeholder="Leave as 0 for free adjustment"
+                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                />
+                <p className="text-[10px] text-slate-400 mt-1 font-medium">Automatically recalculates average item cost if greater than zero.</p>
+              </div>
+
+              <div>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Restock Notes / Memo</label>
+                <input
+                  type="text"
+                  value={restockNotes}
+                  onChange={(e) => setRestockNotes(e.target.value)}
+                  placeholder="e.g. Supplied by Chaudhary Wholesalers"
+                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-xs tracking-wider uppercase transition-all cursor-pointer"
+              >
+                Procure Stock
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
