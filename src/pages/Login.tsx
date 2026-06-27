@@ -128,7 +128,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </button>
           </form>
 
-          {/* Seed credentials assistance banner */}
+          {/* Seed credentials assistance banner
           <div className="mt-6 pt-5 border-t border-slate-100 bg-indigo-50/30 rounded-xl px-4 py-3 text-center">
             <span className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wider block mb-1">
               Test Credentials (from .env)
@@ -139,7 +139,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <p className="text-[11px] text-indigo-500 mt-1">
               Staff: <span className="font-mono font-bold">factory</span> / <span className="font-mono font-bold">factory2026</span>
             </p>
-          </div>
+          </div> */}
         </div>
 
         {/* Footer info */}
