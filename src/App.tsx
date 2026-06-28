@@ -32,17 +32,17 @@ export default function App() {
       .then(data => {
         if (data && typeof data === 'object') {
           Object.entries(data).forEach(([key, val]) => {
-            localStorage.setItem(key, JSON.stringify(val));
+            if (key !== 'factory_erp_user') {
+              localStorage.setItem(key, JSON.stringify(val));
+            }
           });
-          const userStr = localStorage.getItem('factory_erp_user');
-          if (userStr) {
-            setCurrentUser(JSON.parse(userStr));
-          }
         }
+        setCurrentUser(getCurrentUser());
         setIsSyncing(false);
       })
       .catch(err => {
         console.error("Failed to sync with MongoDB. Running in cached offline mode.", err);
+        setCurrentUser(getCurrentUser());
         setIsSyncing(false);
       });
   }, []);

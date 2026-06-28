@@ -49,13 +49,37 @@ function getStorage(): Storage | null {
   return window.localStorage;
 }
 
+const LOGIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
 // User Actions
 export function getCurrentUser(): User | null {
   const storage = getStorage();
   if (!storage) return null;
 
-  const user = storage.getItem(KEYS.USER);
-  return user ? JSON.parse(user) : null;
+  const storedValue = storage.getItem(KEYS.USER);
+  if (!storedValue) return null;
+
+  try {
+    const parsed = JSON.parse(storedValue);
+    if (!parsed || typeof parsed !== 'object') {
+      storage.removeItem(KEYS.USER);
+      return null;
+    }
+
+    if (parsed.user && typeof parsed.expiresAt === 'number') {
+      if (Date.now() > parsed.expiresAt) {
+        storage.removeItem(KEYS.USER);
+        return null;
+      }
+      return parsed.user as User;
+    }
+
+    storage.removeItem(KEYS.USER);
+    return null;
+  } catch (error) {
+    storage.removeItem(KEYS.USER);
+    return null;
+  }
 }
 
 export function setCurrentUser(user: User | null): void {
@@ -63,7 +87,10 @@ export function setCurrentUser(user: User | null): void {
   if (!storage) return;
 
   if (user) {
-    storage.setItem(KEYS.USER, JSON.stringify(user));
+    storage.setItem(KEYS.USER, JSON.stringify({
+      user,
+      expiresAt: Date.now() + LOGIN_SESSION_TTL_MS,
+    }));
   } else {
     storage.removeItem(KEYS.USER);
   }
