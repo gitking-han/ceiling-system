@@ -10,7 +10,6 @@ export default function WetProductionPage() {
   const [date, setDate] = useState(getTodayStr());
   const [produced, setProduced] = useState<number>(1000);
   const [plaster, setPlaster] = useState<number>(18);
-  const [maia, setMaia] = useState<number>(88);
   const [notes, setNotes] = useState('');
 
   // Editing state
@@ -35,8 +34,8 @@ export default function WetProductionPage() {
       setError('Molded plates count must be greater than zero.');
       return;
     }
-    if (plaster <= 0 || maia <= 0) {
-      setError('Material consumed amounts must be greater than zero.');
+    if (plaster <= 0) {
+      setError('Plaster Paris used must be greater than zero.');
       return;
     }
 
@@ -49,7 +48,6 @@ export default function WetProductionPage() {
               productionDate: date,
               wetPlatesProduced: produced,
               plasterParisUsed: plaster,
-              maiaUsed: maia,
               notes,
             }
           : r
@@ -65,7 +63,6 @@ export default function WetProductionPage() {
         productionDate: date,
         wetPlatesProduced: produced,
         plasterParisUsed: plaster,
-        maiaUsed: maia,
         notes: notes.trim(),
         createdAt: getTodayStr()
       };
@@ -78,7 +75,6 @@ export default function WetProductionPage() {
     // Reset Form
     setProduced(1000);
     setPlaster(18);
-    setMaia(88);
     setNotes('');
   };
 
@@ -87,7 +83,6 @@ export default function WetProductionPage() {
     setDate(rec.productionDate);
     setProduced(rec.wetPlatesProduced);
     setPlaster(rec.plasterParisUsed);
-    setMaia(rec.maiaUsed);
     setNotes(rec.notes);
   };
 
@@ -104,7 +99,6 @@ export default function WetProductionPage() {
     setEditingRecord(null);
     setProduced(1000);
     setPlaster(18);
-    setMaia(88);
     setNotes('');
   };
 
@@ -164,31 +158,17 @@ export default function WetProductionPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Plaster Paris Used (kg)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.1"
-                  required
-                  value={plaster}
-                  onChange={(e) => setPlaster(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono font-bold"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Maia Used (kg)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.1"
-                  required
-                  value={maia}
-                  onChange={(e) => setMaia(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono font-bold"
-                />
-              </div>
+            <div>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Plaster Paris Used (kg)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.1"
+                required
+                value={plaster}
+                onChange={(e) => setPlaster(parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono font-bold"
+              />
             </div>
 
             <div>
@@ -227,7 +207,7 @@ export default function WetProductionPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div>
               <h3 className="font-display font-bold text-slate-800 text-sm">Wet Molding Batch History</h3>
-              <p className="text-[11px] text-slate-400 font-medium">Daily plaster and maia molding logs</p>
+              <p className="text-[11px] text-slate-400 font-medium">Daily plaster molding logs</p>
             </div>
             {/* Search Date */}
             <div className="relative w-full sm:w-64">
@@ -249,7 +229,6 @@ export default function WetProductionPage() {
                   <th className="py-3 px-2">Production Date</th>
                   <th className="py-3 px-2 text-right">Wet Plates Produced</th>
                   <th className="py-3 px-2 text-right">Plaster Paris Used</th>
-                  <th className="py-3 px-2 text-right">Maia Mix Used</th>
                   <th className="py-3 px-2">Batch Notes</th>
                   <th className="py-3 px-2 text-right">Actions</th>
                 </tr>
@@ -266,9 +245,6 @@ export default function WetProductionPage() {
                       </td>
                       <td className="py-3 px-2 text-right font-mono text-slate-600">
                         {rec.plasterParisUsed} <span className="text-[10px] font-normal text-slate-400">kg</span>
-                      </td>
-                      <td className="py-3 px-2 text-right font-mono text-slate-600">
-                        {rec.maiaUsed} <span className="text-[10px] font-normal text-slate-400">kg</span>
                       </td>
                       <td className="py-3 px-2 text-slate-500 max-w-[150px] truncate" title={rec.notes}>
                         {rec.notes || '—'}
@@ -295,7 +271,7 @@ export default function WetProductionPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-400">
+                    <td colSpan={5} className="py-8 text-center text-slate-400">
                       No wet production runs logged for selected filter.
                     </td>
                   </tr>

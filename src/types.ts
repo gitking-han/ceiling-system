@@ -51,7 +51,6 @@ export interface WetProduction {
   productionDate: string;
   wetPlatesProduced: number;
   plasterParisUsed: number; // in kg (manually input)
-  maiaUsed: number;         // in kg (manually input)
   notes: string;
   createdAt: string;
 }

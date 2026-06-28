@@ -7,9 +7,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     await connectToDatabase();
     const data = req.body;
+    const sanitizedData = Array.isArray(data)
+      ? data.map(({ maiaUsed: _maiaUsed, ...rest }) => rest)
+      : [];
     await WetProduction.deleteMany({});
-    if (Array.isArray(data) && data.length > 0) {
-      await WetProduction.insertMany(data);
+    if (sanitizedData.length > 0) {
+      await WetProduction.insertMany(sanitizedData);
     }
     return res.json({ success: true });
   } catch (err: any) {

@@ -6,8 +6,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     await connectToDatabase();
     if (req.method === 'GET') {
-      const items = await WetProduction.find();
-      return res.status(200).json(items);
+      const items = await WetProduction.find().lean();
+      const sanitizedItems = items.map(({ maiaUsed: _maiaUsed, ...item }) => item);
+      return res.status(200).json(sanitizedItems);
     }
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err: any) {

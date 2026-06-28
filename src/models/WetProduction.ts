@@ -5,7 +5,6 @@ const WetProductionSchema = new mongoose.Schema({
   productionDate: { type: String, required: true },
   wetPlatesProduced: { type: Number, required: true },
   plasterParisUsed: { type: Number, required: true },
-  maiaUsed: { type: Number, required: true },
   notes: { type: String },
   createdAt: { type: String, required: true }
 }, { timestamps: true });
