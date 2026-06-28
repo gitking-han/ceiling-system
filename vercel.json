@@ -3,10 +3,4 @@
   "builds": [
     { "src": "next.config.js", "use": "@vercel/next" }
   ],
-  "env": {
-    "MONGODB_URI": "@mongodb_uri",
-    "ADMIN_USERNAME": "@admin_username",
-    "ADMIN_PASSWORD": "@admin_password",
-    "ADMIN_NAME": "@admin_name"
-  }
 }
