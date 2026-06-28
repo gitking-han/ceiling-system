@@ -42,28 +42,47 @@ export const KEYS = {
   PAYMENTS: 'factory_erp_payments',
 };
 
+function getStorage(): Storage | null {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return null;
+  }
+  return window.localStorage;
+}
+
 // User Actions
 export function getCurrentUser(): User | null {
-  const user = localStorage.getItem(KEYS.USER);
+  const storage = getStorage();
+  if (!storage) return null;
+
+  const user = storage.getItem(KEYS.USER);
   return user ? JSON.parse(user) : null;
 }
 
 export function setCurrentUser(user: User | null): void {
+  const storage = getStorage();
+  if (!storage) return;
+
   if (user) {
-    localStorage.setItem(KEYS.USER, JSON.stringify(user));
+    storage.setItem(KEYS.USER, JSON.stringify(user));
   } else {
-    localStorage.removeItem(KEYS.USER);
+    storage.removeItem(KEYS.USER);
   }
 }
 
 // CRUD generic getter & setters
 export function getData<T>(key: string, defaultValue: T[] = []): T[] {
-  const data = localStorage.getItem(key);
+  const storage = getStorage();
+  if (!storage) return defaultValue;
+
+  const data = storage.getItem(key);
   return data ? JSON.parse(data) : defaultValue;
 }
 
 export function saveData<T>(key: string, data: T[]): void {
-  localStorage.setItem(key, JSON.stringify(data));
+  const storage = getStorage();
+  if (!storage) return;
+
+  storage.setItem(key, JSON.stringify(data));
 
   fetch('/api/save', {
     method: 'POST',

@@ -38,7 +38,7 @@ export default function ReportsPage() {
   };
 
   // Dynamic calculations depending on active report
-  let summaryNode = null;
+  let summaryNode: React.ReactNode = null;
   let reportTitle = '';
   let reportHeaders: string[] = [];
   let reportRows: any[] = [];
