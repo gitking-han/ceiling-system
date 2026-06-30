@@ -36,7 +36,9 @@ export default function FinalProductionPage() {
 
   // Live Formula Consumption Preview Generator
   const getConsumptionPreview = (quantity: number) => {
-    return formulas.map((form) => {
+    return formulas
+      .filter((form) => !form.materialName.toLowerCase().includes('plaster'))
+      .map((form) => {
       let amountNeeded = form.amount * quantity;
       let unitUsed = form.unit;
 
@@ -104,7 +106,7 @@ export default function FinalProductionPage() {
     // Deduct raw materials from stock list & log in 'InventoryTransaction'
     materials.forEach((mat) => {
       const consumption = finalConsumptions.find((c) => c.materialName.toLowerCase() === mat.name.toLowerCase());
-      if (consumption) {
+      if (consumption && !mat.name.toLowerCase().includes('plaster')) {
         // Log transaction of type 'out'
         adjustMaterialStock(
           mat.id,
@@ -269,6 +271,7 @@ export default function FinalProductionPage() {
                 <option value="Heavy Panni">Heavy Panni</option>
                 <option value="Soft Panni">Soft Panni</option>
               </select>
+              <p className="text-[10px] text-slate-400 mt-1 font-medium">This selection is stored with the batch for tracking and reporting.</p>
             </div>
 
             <button

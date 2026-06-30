@@ -1,29 +1,58 @@
 import React, { useState } from 'react';
-import { Droplets, Calendar, Plus, Search, Trash2, Edit2, AlertCircle, Save, X, FileSpreadsheet } from 'lucide-react';
-import { db, getTodayStr } from '../utils/api';
+import { Search, Trash2, Edit2, AlertCircle, FileSpreadsheet } from 'lucide-react';
+import { db, getTodayStr, adjustMaterialStock, convertFormulaAmountToStock } from '../utils/api';
 import { WetProduction } from '../types';
 
 export default function WetProductionPage() {
   const [records, setRecords] = useState<WetProduction[]>(db.getWetProduction());
 
-  // Form states
   const [date, setDate] = useState(getTodayStr());
   const [produced, setProduced] = useState<number>(1000);
-  const [plaster, setPlaster] = useState<number>(18);
   const [notes, setNotes] = useState('');
-
-  // Editing state
   const [editingRecord, setEditingRecord] = useState<WetProduction | null>(null);
-
-  // Search state
   const [searchQuery, setSearchQuery] = useState('');
-
   const [error, setError] = useState('');
   const [toast, setToast] = useState<string | null>(null);
 
   const triggerToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const getPlasterDeduction = (wetPlatesQty: number) => {
+    const formulas = db.getFormulas();
+    const plasterFormula = formulas.find((f) => f.materialName.toLowerCase().includes('plaster'));
+    if (!plasterFormula) return null;
+
+    const materials = db.getMaterials();
+    const material = materials.find((m) => m.name.toLowerCase() === plasterFormula.materialName.toLowerCase());
+    if (!material) return null;
+
+    const converted = convertFormulaAmountToStock(plasterFormula.amount * wetPlatesQty, plasterFormula.unit, material);
+    return {
+      material,
+      formulaName: plasterFormula.materialName,
+      formulaAmount: plasterFormula.amount,
+      formulaUnit: plasterFormula.unit,
+      amount: Math.round(converted.amount * 1000) / 1000,
+      unit: converted.unit,
+    };
+  };
+
+  const restorePlasterDeduction = (record: WetProduction) => {
+    if (!record.plasterParisUsed || record.plasterParisUsed <= 0) return;
+
+    const deduction = getPlasterDeduction(record.wetPlatesProduced);
+    if (!deduction) return;
+
+    adjustMaterialStock(
+      deduction.material.id,
+      record.plasterParisUsed,
+      'in',
+      0,
+      record.productionDate,
+      `Restored wet production plaster deduction for record ${record.id}`
+    );
   };
 
   const handleSaveEntry = (e: React.FormEvent) => {
@@ -34,20 +63,22 @@ export default function WetProductionPage() {
       setError('Molded plates count must be greater than zero.');
       return;
     }
-    if (plaster <= 0) {
-      setError('Plaster Paris used must be greater than zero.');
+
+    const deduction = getPlasterDeduction(produced);
+    if (!deduction) {
+      setError('Please define a Plaster Paris formula in Formula Settings and add matching stock in Inventory.');
       return;
     }
 
     if (editingRecord) {
-      // Editing existing record
+      restorePlasterDeduction(editingRecord);
       const updated = records.map((r) =>
         r.id === editingRecord.id
           ? {
               ...r,
               productionDate: date,
               wetPlatesProduced: produced,
-              plasterParisUsed: plaster,
+              plasterParisUsed: deduction.amount,
               notes,
             }
           : r
@@ -57,14 +88,13 @@ export default function WetProductionPage() {
       setEditingRecord(null);
       triggerToast('Wet batch record updated successfully.');
     } else {
-      // Creating new record
       const newRecord: WetProduction = {
         id: 'wet_' + Math.random().toString(36).substr(2, 9),
         productionDate: date,
         wetPlatesProduced: produced,
-        plasterParisUsed: plaster,
+        plasterParisUsed: deduction.amount,
         notes: notes.trim(),
-        createdAt: getTodayStr()
+        createdAt: getTodayStr(),
       };
       const updated = [...records, newRecord];
       db.saveWetProduction(updated);
@@ -72,9 +102,16 @@ export default function WetProductionPage() {
       triggerToast('Wet batch record created and logged.');
     }
 
-    // Reset Form
+    adjustMaterialStock(
+      deduction.material.id,
+      deduction.amount,
+      'out',
+      0,
+      date,
+      `Automated plaster deduction for wet production batch: ${produced} plates`
+    );
+
     setProduced(1000);
-    setPlaster(18);
     setNotes('');
   };
 
@@ -82,12 +119,15 @@ export default function WetProductionPage() {
     setEditingRecord(rec);
     setDate(rec.productionDate);
     setProduced(rec.wetPlatesProduced);
-    setPlaster(rec.plasterParisUsed);
     setNotes(rec.notes);
   };
 
   const handleDelete = (id: string) => {
     if (confirm('Are you sure you want to delete this wet production record?')) {
+      const record = records.find((r) => r.id === id);
+      if (record) {
+        restorePlasterDeduction(record);
+      }
       const updated = records.filter((r) => r.id !== id);
       db.saveWetProduction(updated);
       setRecords(updated);
@@ -98,18 +138,17 @@ export default function WetProductionPage() {
   const handleCancelEdit = () => {
     setEditingRecord(null);
     setProduced(1000);
-    setPlaster(18);
     setNotes('');
   };
 
-  // Filter records based on search (date or notes)
   const filteredRecords = records.filter((rec) => {
     return rec.productionDate.includes(searchQuery) || rec.notes.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
+  const plasterPreview = getPlasterDeduction(produced);
+
   return (
     <div className="space-y-6">
-      {/* Toast Alert */}
       {toast && (
         <div className="fixed bottom-5 right-5 z-50 px-4 py-3 bg-emerald-600 text-white rounded-xl border border-emerald-500 flex items-center gap-2 text-xs font-semibold shadow-lg">
           <FileSpreadsheet size={16} />
@@ -118,7 +157,6 @@ export default function WetProductionPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Entry Form Card */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <h3 className="font-display font-bold text-slate-800 text-sm mb-1">
             {editingRecord ? 'Modify Wet Plate Entry' : 'Log New Wet Plate Batch'}
@@ -158,17 +196,20 @@ export default function WetProductionPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Plaster Paris Used (kg)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.1"
-                required
-                value={plaster}
-                onChange={(e) => setPlaster(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono font-bold"
-              />
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100/60 text-[11px] text-slate-600">
+              <p className="font-semibold uppercase tracking-wider text-[10px] text-slate-500 mb-1">Plaster deduction preview</p>
+              {plasterPreview ? (
+                <>
+                  <p className="font-semibold text-slate-700">
+                    Estimated deduction: {plasterPreview.amount.toLocaleString()} {plasterPreview.unit}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Formula source: {plasterPreview.formulaName} • {plasterPreview.formulaAmount} {plasterPreview.formulaUnit} / plate
+                  </p>
+                </>
+              ) : (
+                <p>No plaster formula or stock entry has been configured yet.</p>
+              )}
             </div>
 
             <div>
@@ -202,14 +243,12 @@ export default function WetProductionPage() {
           </form>
         </div>
 
-        {/* Records History table */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm lg:col-span-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div>
               <h3 className="font-display font-bold text-slate-800 text-sm">Wet Molding Batch History</h3>
-              <p className="text-[11px] text-slate-400 font-medium">Daily plaster molding logs</p>
+              <p className="text-[11px] text-slate-400 font-medium">Daily plaster molding logs and automatic stock deductions</p>
             </div>
-            {/* Search Date */}
             <div className="relative w-full sm:w-64">
               <Search className="absolute inset-y-0 left-3 my-auto text-slate-400" size={14} />
               <input
@@ -228,47 +267,53 @@ export default function WetProductionPage() {
                 <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
                   <th className="py-3 px-2">Production Date</th>
                   <th className="py-3 px-2 text-right">Wet Plates Produced</th>
-                  <th className="py-3 px-2 text-right">Plaster Paris Used</th>
+                  <th className="py-3 px-2 text-right">Plaster Deducted</th>
                   <th className="py-3 px-2">Batch Notes</th>
                   <th className="py-3 px-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                 {filteredRecords.length > 0 ? (
-                  [...filteredRecords].reverse().map((rec) => (
-                    <tr key={rec.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3 px-2 font-semibold text-slate-800 font-mono">
-                        {rec.productionDate}
-                      </td>
-                      <td className="py-3 px-2 text-right font-mono font-bold text-slate-900">
-                        {rec.wetPlatesProduced.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">pcs</span>
-                      </td>
-                      <td className="py-3 px-2 text-right font-mono text-slate-600">
-                        {rec.plasterParisUsed} <span className="text-[10px] font-normal text-slate-400">kg</span>
-                      </td>
-                      <td className="py-3 px-2 text-slate-500 max-w-[150px] truncate" title={rec.notes}>
-                        {rec.notes || '—'}
-                      </td>
-                      <td className="py-3 px-2">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleEditInit(rec)}
-                            className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-50"
-                            title="Edit entry"
-                          >
-                            <Edit2 size={12} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(rec.id)}
-                            className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
-                            title="Delete entry"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  [...filteredRecords].reverse().map((rec) => {
+                    const recordPreview = getPlasterDeduction(rec.wetPlatesProduced);
+                    return (
+                      <tr key={rec.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 px-2 font-semibold text-slate-800 font-mono">{rec.productionDate}</td>
+                        <td className="py-3 px-2 text-right font-mono font-bold text-slate-900">
+                          {rec.wetPlatesProduced.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">pcs</span>
+                        </td>
+                        <td className="py-3 px-2 text-right font-mono text-slate-600">
+                          <div>
+                            {rec.plasterParisUsed.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">{rec.plasterParisUsed > 1 ? 'units' : 'unit'}</span>
+                          </div>
+                          {recordPreview && (
+                            <div className="text-[9px] text-slate-400 mt-1">
+                              Formula: {recordPreview.formulaAmount} {recordPreview.formulaUnit}/plate
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-2 text-slate-500 max-w-37.5 truncate" title={rec.notes}>{rec.notes || '—'}</td>
+                        <td className="py-3 px-2">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleEditInit(rec)}
+                              className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-50"
+                              title="Edit entry"
+                            >
+                              <Edit2 size={12} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(rec.id)}
+                              className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
+                              title="Delete entry"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-slate-400">

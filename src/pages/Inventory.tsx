@@ -49,6 +49,20 @@ export default function Inventory() {
   // Notifications/Toasts helper
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  const getSuggestedConversionFactor = (unit: string, name: string) => {
+    const normalizedName = name.toLowerCase();
+    const normalizedUnit = unit.toLowerCase();
+
+    if (normalizedName.includes('tape')) return 272;
+    if (normalizedName.includes('brown paper')) return 500;
+    if (normalizedName.includes('panni')) return 50;
+    if (normalizedName.includes('packing shopper')) return 40;
+    if (normalizedUnit === 'rolls') return 272;
+    if (normalizedUnit === 'rims') return 500;
+    if (normalizedUnit === 'kg') return 50;
+    return 1;
+  };
+
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3000);
@@ -65,6 +79,9 @@ export default function Inventory() {
       return;
     }
 
+    const suggestedConversionFactor = getSuggestedConversionFactor(newMatUnit, newMatName.trim());
+    const finalConversionFactor = newMatConversionFactor > 1 ? newMatConversionFactor : suggestedConversionFactor;
+
     const newMaterial: RawMaterial = {
       id: 'm_' + Math.random().toString(36).substr(2, 9),
       name: newMatName.trim(),
@@ -72,7 +89,7 @@ export default function Inventory() {
       unit: newMatUnit,
       costPerUnit: newMatCost,
       minThreshold: newMatThreshold,
-      conversionFactor: newMatConversionFactor > 0 ? newMatConversionFactor : 1,
+      conversionFactor: finalConversionFactor > 0 ? finalConversionFactor : 1,
       updatedAt: restockDate
     };
 
@@ -254,6 +271,9 @@ export default function Inventory() {
                             <span className={`w-1.5 h-1.5 rounded-full ${isLow ? 'bg-rose-500 animate-pulse' : 'bg-slate-300'}`} />
                             <div>
                               <p className="text-slate-800">{mat.name}</p>
+                              <p className="text-[9px] text-slate-400 font-medium mt-0.5">
+                                {getConversionLabel(mat.unit)}: {mat.conversionFactor}
+                              </p>
                               {isLow && <span className="text-[9px] text-rose-500 font-bold uppercase tracking-wider">Critical Low</span>}
                             </div>
                           </div>
@@ -437,7 +457,9 @@ export default function Inventory() {
                     onChange={(e) => setNewMatConversionFactor(parseFloat(e.target.value) || 1)}
                     className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1 font-medium">{getConversionLabel(newMatUnit)}</p>
+                  <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                    {getConversionLabel(newMatUnit)} • Suggested default: {getSuggestedConversionFactor(newMatUnit, newMatName.trim())}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Cost Per Unit (Rs)</label>
