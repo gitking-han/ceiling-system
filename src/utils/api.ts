@@ -164,6 +164,59 @@ export const db = {
 
 // HELPER BUSINESS LOGICS
 
+export function getConversionLabel(unit: string): string {
+  const normalized = unit?.toLowerCase() || '';
+  if (normalized === 'rolls') return 'Feet per roll';
+  if (normalized === 'rims') return 'Pieces per rim';
+  if (normalized === 'kg') return 'Pieces per kg';
+  if (normalized === 'grams') return 'Pieces per gram';
+  return 'Units per stock item';
+}
+
+export function getMaterialConversionFactor(material: RawMaterial | null | undefined): number {
+  if (!material) return 1;
+  if (typeof material.conversionFactor === 'number' && material.conversionFactor > 0) {
+    return material.conversionFactor;
+  }
+
+  const name = material.name?.toLowerCase() || '';
+  const unit = material.unit?.toLowerCase() || '';
+
+  if (name.includes('tape')) return 272;
+  if (name.includes('brown paper')) return 500;
+  if (name.includes('panni')) return 50;
+  if (name.includes('packing shopper')) return 40;
+  if (unit === 'rolls') return 272;
+  if (unit === 'rims') return 500;
+  if (unit === 'kg') return 50;
+
+  return 1;
+}
+
+export function convertFormulaAmountToStock(amount: number, formulaUnit: string, material: RawMaterial | null | undefined) {
+  const normalizedFormulaUnit = formulaUnit?.toLowerCase() || '';
+  const normalizedMaterialUnit = material?.unit?.toLowerCase() || '';
+  const conversionFactor = getMaterialConversionFactor(material);
+
+  if (normalizedFormulaUnit === 'g' && normalizedMaterialUnit === 'kg') {
+    return { amount: amount / 1000, unit: 'kg' };
+  }
+  if (normalizedFormulaUnit === 'kg' && normalizedMaterialUnit === 'g') {
+    return { amount: amount * 1000, unit: 'g' };
+  }
+  if (normalizedFormulaUnit === 'feet' && normalizedMaterialUnit === 'rolls' && conversionFactor > 0) {
+    return { amount: amount / conversionFactor, unit: 'rolls' };
+  }
+  if (normalizedFormulaUnit === 'pieces' && conversionFactor > 0 && ['rims', 'kg', 'rolls', 'pieces'].includes(normalizedMaterialUnit)) {
+    return { amount: amount / conversionFactor, unit: normalizedMaterialUnit || 'pieces' };
+  }
+  if (normalizedFormulaUnit === normalizedMaterialUnit) {
+    return { amount, unit: normalizedMaterialUnit || normalizedFormulaUnit };
+  }
+
+  return { amount, unit: normalizedMaterialUnit || normalizedFormulaUnit };
+}
+
 // 1. Log Material Transaction & update materials main quantity
 export function adjustMaterialStock(
   materialId: string,

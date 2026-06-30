@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CheckSquare, ArrowRight, Eye, Clipboard, Trash2, Edit2, AlertCircle, RefreshCw, CheckCircle, HelpCircle } from 'lucide-react';
-import { db, getTodayStr, adjustMaterialStock } from '../utils/api';
+import { db, getTodayStr, adjustMaterialStock, convertFormulaAmountToStock } from '../utils/api';
 import { FinalProduction, Formula, RawMaterial, InventoryTransaction } from '../types';
 
 export default function FinalProductionPage() {
@@ -14,6 +14,7 @@ export default function FinalProductionPage() {
   const [date, setDate] = useState(getTodayStr());
   const [dryReceived, setDryReceived] = useState<number>(latestDryProduction?.dryPlatesProduced ?? 1000);
   const [finalProduced, setFinalProduced] = useState<number>(950);
+  const [panniType, setPanniType] = useState('Standard Panni');
 
   useEffect(() => {
     if (latestDryProduction) {
@@ -42,11 +43,9 @@ export default function FinalProductionPage() {
       // Match raw material from stock to check its unit
       const mat = materials.find((m) => m.name.toLowerCase() === form.materialName.toLowerCase());
       if (mat) {
-        // If stock is kept in kg but formula uses grams (g)
-        if (mat.unit.toLowerCase() === 'kg' && form.unit.toLowerCase() === 'g') {
-          amountNeeded = amountNeeded / 1000; // Convert to kg
-          unitUsed = 'kg';
-        }
+        const converted = convertFormulaAmountToStock(amountNeeded, form.unit, mat);
+        amountNeeded = converted.amount;
+        unitUsed = converted.unit;
       }
 
       // Format to 3 decimal places for readability
@@ -97,6 +96,7 @@ export default function FinalProductionPage() {
       dryPlatesReceived: dryReceived,
       finalPlatesProduced: finalProduced,
       notes: notes.trim(),
+      panniType: panniType.trim() || undefined,
       createdAt: getTodayStr(),
       consumptions: finalConsumptions,
     };
@@ -141,6 +141,7 @@ export default function FinalProductionPage() {
     // Reset Form
     setDryReceived(1000);
     setFinalProduced(950);
+    setPanniType('Standard Panni');
     setNotes('');
     triggerToast(`Final production of ${finalProduced} plates committed. Materials deducted from stock.`);
   };
@@ -254,6 +255,20 @@ export default function FinalProductionPage() {
                 placeholder="Shift summary, quality check, loader names..."
                 className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
               />
+            </div>
+
+            <div>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Panni Type</label>
+              <select
+                value={panniType}
+                onChange={(e) => setPanniType(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+              >
+                <option value="Standard Panni">Standard Panni</option>
+                <option value="Premium Panni">Premium Panni</option>
+                <option value="Heavy Panni">Heavy Panni</option>
+                <option value="Soft Panni">Soft Panni</option>
+              </select>
             </div>
 
             <button
@@ -380,6 +395,11 @@ export default function FinalProductionPage() {
               <p className="text-[10px] text-slate-500 mb-3 font-semibold uppercase tracking-wider">
                 Total Output: <span className="text-slate-800 font-bold font-mono">{selectedRecord.finalPlatesProduced.toLocaleString()} plates</span> | Date: <span className="text-slate-800 font-bold font-mono">{selectedRecord.date}</span>
               </p>
+              {selectedRecord.panniType && (
+                <p className="text-[10px] text-indigo-600 mb-3 font-semibold uppercase tracking-wider">
+                  Panni Type: <span className="text-slate-800 font-bold font-mono">{selectedRecord.panniType}</span>
+                </p>
+              )}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {selectedRecord.consumptions?.map((cons, i) => (
                   <div key={i} className="p-2.5 bg-white border border-slate-100 rounded-lg">

@@ -7,6 +7,7 @@ const RawMaterialSchema = new mongoose.Schema({
   unit: { type: String, required: true },
   costPerUnit: { type: Number, required: true, default: 0 },
   minThreshold: { type: Number, required: true, default: 0 },
+  conversionFactor: { type: Number, required: true, default: 1 },
   updatedAt: { type: String, required: true }
 }, { timestamps: true });
 

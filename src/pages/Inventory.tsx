@@ -13,7 +13,7 @@ import {
   X,
   FileCheck
 } from 'lucide-react';
-import { db, adjustMaterialStock } from '../utils/api';
+import { db, adjustMaterialStock, getConversionLabel } from '../utils/api';
 import { RawMaterial, InventoryTransaction } from '../types';
 
 export default function Inventory() {
@@ -32,6 +32,7 @@ export default function Inventory() {
   // New Material form state
   const [newMatName, setNewMatName] = useState('');
   const [newMatUnit, setNewMatUnit] = useState('kg');
+  const [newMatConversionFactor, setNewMatConversionFactor] = useState(1);
   const [newMatQuantity, setNewMatQuantity] = useState(0);
   const [newMatCost, setNewMatCost] = useState(0);
   const [newMatThreshold, setNewMatThreshold] = useState(100);
@@ -71,6 +72,7 @@ export default function Inventory() {
       unit: newMatUnit,
       costPerUnit: newMatCost,
       minThreshold: newMatThreshold,
+      conversionFactor: newMatConversionFactor > 0 ? newMatConversionFactor : 1,
       updatedAt: restockDate
     };
 
@@ -99,6 +101,7 @@ export default function Inventory() {
     // Reset Form
     setNewMatName('');
     setNewMatUnit('kg');
+    setNewMatConversionFactor(1);
     setNewMatQuantity(0);
     setNewMatCost(0);
     setNewMatThreshold(100);
@@ -326,7 +329,7 @@ export default function Inventory() {
             </span>
           </div>
 
-          <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+          <div className="space-y-4 max-h-120 overflow-y-auto pr-1">
             {transactions.length > 0 ? (
               [...transactions]
                 .reverse()
@@ -404,7 +407,8 @@ export default function Inventory() {
                   >
                     <option value="kg">kg (Kilograms)</option>
                     <option value="grams">grams (g)</option>
-                    <option value="feet">feet (ft)</option>
+                    <option value="rolls">rolls</option>
+                    <option value="rims">rims</option>
                     <option value="pieces">pieces (pcs)</option>
                   </select>
                 </div>
@@ -421,17 +425,19 @@ export default function Inventory() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 border-t border-slate-100/50 pt-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Opening Stock Qty</label>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Conversion Factor</label>
                   <input
                     type="number"
-                    min="0"
+                    min="1"
+                    step="0.01"
                     required
-                    value={newMatQuantity}
-                    onChange={(e) => setNewMatQuantity(parseInt(e.target.value) || 0)}
+                    value={newMatConversionFactor}
+                    onChange={(e) => setNewMatConversionFactor(parseFloat(e.target.value) || 1)}
                     className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
                   />
+                  <p className="text-[10px] text-slate-400 mt-1 font-medium">{getConversionLabel(newMatUnit)}</p>
                 </div>
                 <div>
                   <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Cost Per Unit (Rs)</label>
@@ -442,6 +448,20 @@ export default function Inventory() {
                     required
                     value={newMatCost}
                     onChange={(e) => setNewMatCost(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 border-t border-slate-100/50 pt-3">
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Opening Stock Qty</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={newMatQuantity}
+                    onChange={(e) => setNewMatQuantity(parseInt(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
                   />
                 </div>
@@ -502,6 +522,19 @@ export default function Inventory() {
                   required
                   value={editingMaterial.minThreshold}
                   onChange={(e) => setEditingMaterial({ ...editingMaterial, minThreshold: parseInt(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Conversion Factor ({getConversionLabel(editingMaterial.unit)})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="1"
+                  required
+                  value={editingMaterial.conversionFactor ?? 1}
+                  onChange={(e) => setEditingMaterial({ ...editingMaterial, conversionFactor: parseFloat(e.target.value) || 1 })}
                   className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
                 />
               </div>

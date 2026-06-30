@@ -6,6 +6,7 @@ const FinalProductionSchema = new mongoose.Schema({
   dryPlatesReceived: { type: Number, required: true },
   finalPlatesProduced: { type: Number, required: true },
   notes: { type: String },
+  panniType: { type: String },
   createdAt: { type: String, required: true },
   consumptions: [{
     materialName: { type: String, required: true },

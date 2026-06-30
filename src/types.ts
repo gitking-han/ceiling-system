@@ -9,9 +9,10 @@ export interface RawMaterial {
   id: string;
   name: string;
   quantity: number; // current stock quantity
-  unit: string;     // e.g., "kg", "grams", "feet", "pieces", "bags"
-  costPerUnit: number; // cost per unit in Rupees
+  unit: string;     // e.g., "kg", "grams", "feet", "pieces", "rolls", "rims"
+  costPerUnit: number; // cost per stock unit in Rupees
   minThreshold: number; // for low stock alert
+  conversionFactor: number; // e.g. 272 feet per roll, 500 pieces per rim, 50 pieces per kg
   updatedAt: string;
 }
 
@@ -71,6 +72,7 @@ export interface FinalProduction {
   dryPlatesReceived: number;
   finalPlatesProduced: number;
   notes?: string;
+  panniType?: string;
   createdAt: string;
   consumptions: {
     materialName: string;
