@@ -91,7 +91,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice }: DashboardPro
       id: 'wet_' + w.id,
       type: 'Wet Production',
       title: `${w.wetPlatesProduced} Wet Plates Molded`,
-      subtitle: `Plaster: ${w.plasterParisUsed}kg`,
+      subtitle: `Plaster: ${w.plasterParisUsed} bags`,
       time: w.productionDate,
       badgeColor: 'bg-blue-50 text-blue-700 border-blue-100',
       tabRef: 'wet-prod'

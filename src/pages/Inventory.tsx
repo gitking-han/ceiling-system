@@ -53,6 +53,7 @@ export default function Inventory() {
     const normalizedName = name.toLowerCase();
     const normalizedUnit = unit.toLowerCase();
 
+    if (normalizedName.includes('plaster')) return 25;
     if (normalizedName.includes('tape')) return 272;
     if (normalizedName.includes('brown paper')) return 500;
     if (normalizedName.includes('panni')) return 50;
@@ -60,6 +61,7 @@ export default function Inventory() {
     if (normalizedUnit === 'rolls') return 272;
     if (normalizedUnit === 'rims') return 500;
     if (normalizedUnit === 'kg') return 50;
+    if (normalizedUnit === 'bags') return 25;
     return 1;
   };
 
@@ -79,14 +81,16 @@ export default function Inventory() {
       return;
     }
 
-    const suggestedConversionFactor = getSuggestedConversionFactor(newMatUnit, newMatName.trim());
+    const normalizedMaterialName = newMatName.trim();
+    const selectedUnit = normalizedMaterialName.toLowerCase().includes('plaster') ? 'bags' : newMatUnit;
+    const suggestedConversionFactor = getSuggestedConversionFactor(selectedUnit, normalizedMaterialName);
     const finalConversionFactor = newMatConversionFactor > 1 ? newMatConversionFactor : suggestedConversionFactor;
 
     const newMaterial: RawMaterial = {
       id: 'm_' + Math.random().toString(36).substr(2, 9),
-      name: newMatName.trim(),
+      name: normalizedMaterialName,
       quantity: newMatQuantity,
-      unit: newMatUnit,
+      unit: selectedUnit,
       costPerUnit: newMatCost,
       minThreshold: newMatThreshold,
       conversionFactor: finalConversionFactor > 0 ? finalConversionFactor : 1,
@@ -94,8 +98,8 @@ export default function Inventory() {
     };
 
     const updatedMaterials = [...materials, newMaterial];
-    db.saveMaterials(updatedMaterials);
-    setMaterials(updatedMaterials);
+    const persistedMaterials = db.saveMaterials(updatedMaterials);
+    setMaterials(persistedMaterials);
 
     // If initial quantity is greater than zero, write an 'in' transaction
     if (newMatQuantity > 0) {
@@ -132,8 +136,8 @@ export default function Inventory() {
     if (!editingMaterial) return;
 
     const updated = materials.map(m => m.id === editingMaterial.id ? editingMaterial : m);
-    db.saveMaterials(updated);
-    setMaterials(updated);
+    const persisted = db.saveMaterials(updated);
+    setMaterials(persisted);
     setEditingMaterial(null);
     showToast('success', 'Material parameters updated.');
   };
@@ -142,8 +146,8 @@ export default function Inventory() {
   const handleDeleteMaterial = (id: string, name: string) => {
     if (confirm(`Are you sure you want to delete ${name}? This will remove the material from inventory list.`)) {
       const updated = materials.filter(m => m.id !== id);
-      db.saveMaterials(updated);
-      setMaterials(updated);
+      const persisted = db.saveMaterials(updated);
+      setMaterials(persisted);
       showToast('success', `${name} deleted from materials list.`);
     }
   };
@@ -427,6 +431,7 @@ export default function Inventory() {
                   >
                     <option value="kg">kg (Kilograms)</option>
                     <option value="grams">grams (g)</option>
+                    <option value="bags">bags</option>
                     <option value="rolls">rolls</option>
                     <option value="rims">rims</option>
                     <option value="pieces">pieces (pcs)</option>

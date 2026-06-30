@@ -95,12 +95,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? [sanitizedData]
       : [];
 
-    await Model.deleteMany({});
-    if (arrayData.length > 0) {
-      await Model.insertMany(arrayData);
+    // Deduplicate incoming array by `id` to avoid E11000 duplicate key errors.
+    // If an item has no `id`, generate one to ensure uniqueness.
+    const map = new Map<string, any>();
+    for (const item of arrayData) {
+      if (!item || typeof item !== 'object') continue;
+      let itemId = item.id;
+      if (!itemId) {
+        // fallback id generation using model specific prefixes when possible
+        const prefix = (key === KEYS.LEDGER && item.materialId) ? 'led_' : (key === KEYS.FINAL_PROD ? 'final_' : 'id_');
+        itemId = `${prefix}${Math.random().toString(36).substr(2, 9)}`;
+        item.id = itemId;
+      }
+      // keep the last occurrence of the id (overwrites earlier duplicates)
+      map.set(itemId, item);
     }
 
-    res.json({ success: true, count: arrayData.length });
+    const finalArray = Array.from(map.values());
+
+    await Model.deleteMany({});
+    if (finalArray.length > 0) {
+      try {
+        // use unordered insert to allow partial success if unexpected duplicates remain
+        await Model.insertMany(finalArray, { ordered: false });
+      } catch (err: any) {
+        // If duplicate key error still occurs, log and continue — we don't want a single dup to crash the whole sync
+        console.error('Save API partial insert error:', err.message || err);
+        if (err.code && err.code !== 11000) {
+          throw err;
+        }
+      }
+    }
+
+    res.json({ success: true, count: finalArray.length });
   } catch (err: any) {
     console.error(`Save API error for key ${key}:`, err);
     res.status(500).json({ error: err.message });

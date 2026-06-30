@@ -109,7 +109,7 @@ export default function FormulaSettings() {
   const handleResetToDefaults = () => {
     if (confirm('Are you sure you want to restore default factory formulas? This will overwrite your current settings.')) {
       const defaultFormulas: Formula[] = [
-        { id: '1', materialName: 'Plaster Paris', amount: 16.6, unit: 'g', updatedAt: getTodayStr() },
+        { id: '1', materialName: 'Plaster Paris', amount: 25, unit: 'kg', updatedAt: getTodayStr() },
         { id: '2', materialName: 'Maia', amount: 84.0, unit: 'g', updatedAt: getTodayStr() },
         { id: '3', materialName: 'PVC Glue', amount: 2.0, unit: 'g', updatedAt: getTodayStr() },
         { id: '4', materialName: 'PVA Glue', amount: 0.33, unit: 'g', updatedAt: getTodayStr() },

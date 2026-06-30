@@ -284,7 +284,7 @@ export default function WetProductionPage() {
                         </td>
                         <td className="py-3 px-2 text-right font-mono text-slate-600">
                           <div>
-                            {rec.plasterParisUsed.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">{rec.plasterParisUsed > 1 ? 'units' : 'unit'}</span>
+                            {rec.plasterParisUsed.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">bags</span>
                           </div>
                           {recordPreview && (
                             <div className="text-[9px] text-slate-400 mt-1">

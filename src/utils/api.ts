@@ -120,10 +120,78 @@ export function saveData<T>(key: string, data: T[]): void {
   });
 }
 
+export function normalizeMaterial(material: RawMaterial): RawMaterial {
+  const name = material?.name?.toLowerCase() || '';
+  const unit = material?.unit?.toLowerCase() || '';
+
+  let targetUnit = unit;
+  let conversionFactor = material.conversionFactor && material.conversionFactor > 0 ? material.conversionFactor : 1;
+  let quantity = material.quantity || 0;
+
+  if (name.includes('plaster')) {
+    targetUnit = 'bags';
+    conversionFactor = material.conversionFactor && material.conversionFactor > 0 ? material.conversionFactor : 25;
+    if (unit === 'kg') {
+      quantity = quantity / conversionFactor;
+    } else if (unit === 'g') {
+      quantity = quantity / 1000 / conversionFactor;
+    } else if (unit === 'pieces') {
+      quantity = quantity / conversionFactor;
+    }
+  } else if (name.includes('tape')) {
+    targetUnit = 'rolls';
+    conversionFactor = 272;
+    if (unit === 'feet') {
+      quantity = quantity / 272;
+    }
+  } else if (name.includes('brown paper')) {
+    targetUnit = 'rims';
+    conversionFactor = 500;
+    if (unit === 'pieces') {
+      quantity = quantity / 500;
+    }
+  } else if (name.includes('panni')) {
+    targetUnit = 'kg';
+    conversionFactor = 50;
+    if (unit === 'pieces') {
+      quantity = quantity / 50;
+    }
+  } else if (name.includes('packing shopper')) {
+    targetUnit = 'kg';
+    conversionFactor = 40;
+    if (unit === 'pieces') {
+      quantity = quantity / 40;
+    }
+  }
+
+  return {
+    ...material,
+    quantity: Math.round(quantity * 1000) / 1000,
+    unit: targetUnit,
+    conversionFactor,
+    updatedAt: material.updatedAt || getTodayStr(),
+  };
+}
+
+export function normalizeMaterials(materials: RawMaterial[]): RawMaterial[] {
+  return materials.map(normalizeMaterial);
+}
+
 // Unified getters and setters for components
 export const db = {
-  getMaterials: () => getData<RawMaterial>(KEYS.MATERIALS),
-  saveMaterials: (data: RawMaterial[]) => saveData<RawMaterial>(KEYS.MATERIALS, data),
+  getMaterials: () => {
+    const materials = getData<RawMaterial>(KEYS.MATERIALS);
+    const normalized = normalizeMaterials(materials);
+    if (JSON.stringify(normalized) !== JSON.stringify(materials)) {
+      saveData<RawMaterial>(KEYS.MATERIALS, normalized);
+    }
+    return normalized;
+  },
+  saveMaterials: (data: RawMaterial[]) => {
+    const normalized = normalizeMaterials(data);
+    saveData<RawMaterial>(KEYS.MATERIALS, normalized);
+    return normalized;
+  },
 
   getTransactions: () => getData<InventoryTransaction>(KEYS.TRANSACTIONS),
   saveTransactions: (data: InventoryTransaction[]) => saveData<InventoryTransaction>(KEYS.TRANSACTIONS, data),
@@ -168,6 +236,7 @@ export function getConversionLabel(unit: string): string {
   const normalized = unit?.toLowerCase() || '';
   if (normalized === 'rolls') return 'Feet per roll';
   if (normalized === 'rims') return 'Pieces per rim';
+  if (normalized === 'bags') return 'Kg per bag';
   if (normalized === 'kg') return 'Pieces per kg';
   if (normalized === 'grams') return 'Pieces per gram';
   return 'Units per stock item';
@@ -182,6 +251,7 @@ export function getMaterialConversionFactor(material: RawMaterial | null | undef
   const name = material.name?.toLowerCase() || '';
   const unit = material.unit?.toLowerCase() || '';
 
+  if (name.includes('plaster')) return 25;
   if (name.includes('tape')) return 272;
   if (name.includes('brown paper')) return 500;
   if (name.includes('panni')) return 50;
@@ -201,8 +271,14 @@ export function convertFormulaAmountToStock(amount: number, formulaUnit: string,
   if (normalizedFormulaUnit === 'g' && normalizedMaterialUnit === 'kg') {
     return { amount: amount / 1000, unit: 'kg' };
   }
+  if (normalizedFormulaUnit === 'g' && normalizedMaterialUnit === 'bags' && conversionFactor > 0) {
+    return { amount: amount / 1000 / conversionFactor, unit: 'bags' };
+  }
   if (normalizedFormulaUnit === 'kg' && normalizedMaterialUnit === 'g') {
     return { amount: amount * 1000, unit: 'g' };
+  }
+  if (normalizedFormulaUnit === 'kg' && normalizedMaterialUnit === 'bags' && conversionFactor > 0) {
+    return { amount: amount / conversionFactor, unit: 'bags' };
   }
   if (normalizedFormulaUnit === 'feet' && normalizedMaterialUnit === 'rolls' && conversionFactor > 0) {
     return { amount: amount / conversionFactor, unit: 'rolls' };
