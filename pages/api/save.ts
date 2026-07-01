@@ -13,6 +13,8 @@ import { WasteRecord } from '../../src/models/WasteRecord';
 import { Expense } from '../../src/models/Expense';
 import { Customer } from '../../src/models/Customer';
 import { CustomerLedgerEntry } from '../../src/models/CustomerLedgerEntry';
+import { Supplier } from '../../src/models/Supplier';
+import { SupplierLedgerEntry } from '../../src/models/SupplierLedgerEntry';
 import { Sale } from '../../src/models/Sale';
 import { Payment } from '../../src/models/Payment';
 
@@ -29,6 +31,8 @@ const KEYS = {
   EXPENSES: 'factory_erp_expenses',
   CUSTOMERS: 'factory_erp_customers',
   LEDGER: 'factory_erp_ledger',
+  SUPPLIERS: 'factory_erp_suppliers',
+  SUPPLIER_LEDGER: 'factory_erp_supplier_ledger',
   SALES: 'factory_erp_sales',
   PAYMENTS: 'factory_erp_payments',
 };
@@ -46,6 +50,8 @@ const MODEL_MAP: Record<string, any> = {
   [KEYS.EXPENSES]: Expense,
   [KEYS.CUSTOMERS]: Customer,
   [KEYS.LEDGER]: CustomerLedgerEntry,
+  [KEYS.SUPPLIERS]: Supplier,
+  [KEYS.SUPPLIER_LEDGER]: SupplierLedgerEntry,
   [KEYS.SALES]: Sale,
   [KEYS.PAYMENTS]: Payment,
 };

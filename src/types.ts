@@ -102,6 +102,28 @@ export interface Expense {
   createdAt: string;
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  openingBalance: number; // amount owed at the start
+  supplierMaterials: string[]; // material names supplied by this vendor
+  createdAt: string;
+}
+
+export interface SupplierLedgerEntry {
+  id: string;
+  supplierId: string;
+  date: string;
+  type: 'Opening Balance' | 'Purchase' | 'Payment' | 'Return';
+  referenceId: string; // purchase ID, payment ID, or "opening"
+  debit: number;       // Increase amount owed to supplier
+  credit: number;      // Decrease amount owed to supplier
+  balance: number;     // Running payable balance
+  description: string;
+}
+
 export interface Customer {
   id: string;
   name: string;

@@ -14,6 +14,8 @@ import { WasteRecord } from '../../src/models/WasteRecord';
 import { Expense } from '../../src/models/Expense';
 import { Customer } from '../../src/models/Customer';
 import { CustomerLedgerEntry } from '../../src/models/CustomerLedgerEntry';
+import { Supplier } from '../../src/models/Supplier';
+import { SupplierLedgerEntry } from '../../src/models/SupplierLedgerEntry';
 import { Sale } from '../../src/models/Sale';
 import { Payment } from '../../src/models/Payment';
 
@@ -30,6 +32,8 @@ const KEYS = {
   EXPENSES: 'factory_erp_expenses',
   CUSTOMERS: 'factory_erp_customers',
   LEDGER: 'factory_erp_ledger',
+  SUPPLIERS: 'factory_erp_suppliers',
+  SUPPLIER_LEDGER: 'factory_erp_supplier_ledger',
   SALES: 'factory_erp_sales',
   PAYMENTS: 'factory_erp_payments',
 };
@@ -59,6 +63,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const expenses = await Expense.find();
       const customers = await Customer.find();
       const customerledgerentries = await CustomerLedgerEntry.find();
+      const suppliers = await Supplier.find();
+      const supplierledgerentries = await SupplierLedgerEntry.find();
       const sales = await Sale.find();
       const payments = await Payment.find();
 
@@ -75,6 +81,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         [KEYS.EXPENSES]: expenses,
         [KEYS.CUSTOMERS]: customers,
         [KEYS.LEDGER]: customerledgerentries,
+        [KEYS.SUPPLIERS]: suppliers,
+        [KEYS.SUPPLIER_LEDGER]: supplierledgerentries,
         [KEYS.SALES]: sales,
         [KEYS.PAYMENTS]: payments,
       });
@@ -94,6 +102,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       [KEYS.EXPENSES]: [],
       [KEYS.CUSTOMERS]: [],
       [KEYS.LEDGER]: [],
+      [KEYS.SUPPLIERS]: [],
+      [KEYS.SUPPLIER_LEDGER]: [],
       [KEYS.SALES]: [],
       [KEYS.PAYMENTS]: [],
     });

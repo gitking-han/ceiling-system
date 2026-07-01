@@ -13,6 +13,7 @@ import FinalProduction from './pages/FinalProduction';
 import WasteManagement from './pages/WasteManagement';
 import Expenses from './pages/Expenses';
 import Customers from './pages/Customers';
+import Suppliers from './pages/Suppliers';
 import Sales from './pages/Sales';
 import Reports from './pages/Reports';
 
@@ -27,7 +28,24 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState<boolean>(true);
 
   useEffect(() => {
-    fetch('/api/bootstrap')
+    const storage = window.localStorage;
+    const lastBootstrapSync = storage.getItem('factory_erp_bootstrap_synced_at');
+    const hasLocalSeedData = Boolean(
+      storage.getItem('factory_erp_materials') ||
+      storage.getItem('factory_erp_suppliers') ||
+      storage.getItem('factory_erp_customers')
+    );
+
+    if (hasLocalSeedData && lastBootstrapSync) {
+      const ageMs = Date.now() - Number(lastBootstrapSync);
+      if (ageMs < 30_000) {
+        setCurrentUser(getCurrentUser());
+        setIsSyncing(false);
+        return;
+      }
+    }
+
+    fetch('/api/bootstrap', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data && typeof data === 'object') {
@@ -37,6 +55,7 @@ export default function App() {
             }
           });
         }
+        storage.setItem('factory_erp_bootstrap_synced_at', Date.now().toString());
         setCurrentUser(getCurrentUser());
         setIsSyncing(false);
       })
@@ -101,6 +120,8 @@ export default function App() {
         return <Expenses />;
       case 'customers':
         return <Customers />;
+      case 'suppliers':
+        return <Suppliers />;
       case 'sales':
       case 'invoices': // Both map to our full sales and invoicing operations suite
         return <Sales />;

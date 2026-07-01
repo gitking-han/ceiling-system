@@ -12,6 +12,7 @@ import {
   ShoppingCart,
   FileText,
   BarChart3,
+  Landmark,
   LogOut,
   X
 } from 'lucide-react';
@@ -44,6 +45,7 @@ export default function Sidebar({
     { id: 'waste', name: 'Waste Management', icon: Trash2 },
     { id: 'expenses', name: 'Expenses', icon: Receipt },
     { id: 'customers', name: 'Customers', icon: Users },
+    { id: 'suppliers', name: 'Suppliers', icon: Landmark },
     { id: 'sales', name: 'Sales', icon: ShoppingCart },
     { id: 'invoices', name: 'Invoices', icon: FileText },
     { id: 'reports', name: 'Reports', icon: BarChart3 },

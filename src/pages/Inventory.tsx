@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Package,
   Plus,
@@ -13,8 +13,8 @@ import {
   X,
   FileCheck
 } from 'lucide-react';
-import { db, adjustMaterialStock, getConversionLabel } from '../utils/api';
-import { RawMaterial, InventoryTransaction } from '../types';
+import { db, adjustMaterialStock, getConversionLabel, addSupplierLedgerEntry, refreshSuppliersFromApi, ensureSupplierMaterialAssociation } from '../utils/api';
+import { RawMaterial, InventoryTransaction, Supplier } from '../types';
 
 export default function Inventory() {
   const [materials, setMaterials] = useState<RawMaterial[]>(db.getMaterials());
@@ -28,6 +28,8 @@ export default function Inventory() {
   const [showAddMaterialModal, setShowAddMaterialModal] = useState(false);
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(db.getSuppliers());
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
 
   // New Material form state
   const [newMatName, setNewMatName] = useState('');
@@ -50,6 +52,12 @@ export default function Inventory() {
 
   // Notifications/Toasts helper
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    void refreshSuppliersFromApi().then((items) => {
+      setSuppliers(items);
+    });
+  }, []);
 
   const getSuggestedConversionFactor = (unit: string, name: string) => {
     const normalizedName = name.toLowerCase();
@@ -178,14 +186,30 @@ export default function Inventory() {
       restockNotes || `Restocked ${restockQty} ${selectedMaterial.unit}`
     );
 
+    let linkedSuppliers = suppliers;
+    if (selectedSupplierId) {
+      linkedSuppliers = ensureSupplierMaterialAssociation(selectedSupplierId, selectedMaterial.name);
+      addSupplierLedgerEntry(
+        selectedSupplierId,
+        restockDate,
+        'Purchase',
+        'purchase_' + Math.random().toString(36).substr(2, 9),
+        restockCost,
+        0,
+        `Stock purchase for ${selectedMaterial.name} (${restockQty} ${selectedMaterial.unit})`
+      );
+    }
+
     // Refresh state from DB
     setMaterials(db.getMaterials());
     setTransactions(db.getTransactions());
+    setSuppliers(linkedSuppliers);
 
     // Reset
     setRestockQty(0);
     setRestockCost(0);
     setRestockNotes('');
+    setSelectedSupplierId('');
     setShowRestockModal(false);
     setSelectedMaterial(null);
     showToast('success', `Stock increased for ${selectedMaterial.name}.`);
@@ -651,7 +675,7 @@ export default function Inventory() {
                 <p className="text-slate-400 mt-1 font-semibold uppercase text-[10px]">Current Quantity: <span className="font-mono text-indigo-700 font-bold">{selectedMaterial.quantity} {selectedMaterial.unit}</span></p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Restock Qty ({selectedMaterial.unit})</label>
                   <input
@@ -674,6 +698,35 @@ export default function Inventory() {
                   />
                 </div>
               </div>
+
+              {suppliers.some((supplier) =>
+                supplier.supplierMaterials.some((item) => item.toLowerCase() === selectedMaterial.name.toLowerCase())
+              ) && (
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Supplier</label>
+                  <select
+                    value={selectedSupplierId}
+                    onChange={(e) => {
+                      const nextSupplierId = e.target.value;
+                      setSelectedSupplierId(nextSupplierId);
+                      if (nextSupplierId) {
+                        setSuppliers(ensureSupplierMaterialAssociation(nextSupplierId, selectedMaterial.name));
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+                  >
+                    <option value="">-- Select supplier for this stock --</option>
+                    {suppliers
+                      .filter((supplier) =>
+                        supplier.supplierMaterials.some((item) => item.toLowerCase() === selectedMaterial.name.toLowerCase())
+                      )
+                      .map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                      ))}
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-1">Choose the supplier who supplied this stock. Leave blank if not supplied by a tracked supplier.</p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Total Procurement Cost (Rs)</label>

@@ -11,6 +11,8 @@ import {
   Expense,
   Customer,
   CustomerLedgerEntry,
+  Supplier,
+  SupplierLedgerEntry,
   Sale,
   Payment,
 } from '../types';
@@ -38,6 +40,8 @@ export const KEYS = {
   EXPENSES: 'factory_erp_expenses',
   CUSTOMERS: 'factory_erp_customers',
   LEDGER: 'factory_erp_ledger',
+  SUPPLIERS: 'factory_erp_suppliers',
+  SUPPLIER_LEDGER: 'factory_erp_supplier_ledger',
   SALES: 'factory_erp_sales',
   PAYMENTS: 'factory_erp_payments',
 };
@@ -50,6 +54,27 @@ function getStorage(): Storage | null {
 }
 
 const LOGIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const API_CACHE_TTL_MS = 30 * 1000;
+const API_CACHE_KEYS = {
+  SUPPLIERS: 'factory_erp_api_cache_suppliers',
+  SUPPLIER_LEDGER: 'factory_erp_api_cache_supplier_ledger',
+};
+
+function shouldUseCachedApiData(cacheKey: string): boolean {
+  const storage = getStorage();
+  if (!storage) return false;
+
+  const cachedAt = storage.getItem(cacheKey);
+  if (!cachedAt) return false;
+
+  return Date.now() - Number(cachedAt) < API_CACHE_TTL_MS;
+}
+
+function markApiCache(cacheKey: string): void {
+  const storage = getStorage();
+  if (!storage) return;
+  storage.setItem(cacheKey, Date.now().toString());
+}
 
 // User Actions
 export function getCurrentUser(): User | null {
@@ -118,6 +143,145 @@ export function saveData<T>(key: string, data: T[]): void {
   }).catch((err) => {
     console.error(`Failed to push background sync for key ${key}:`, err);
   });
+}
+
+export async function refreshSuppliersFromApi(): Promise<Supplier[]> {
+  if (typeof window === 'undefined') {
+    return getData<Supplier>(KEYS.SUPPLIERS);
+  }
+
+  const storage = getStorage();
+  if (storage) {
+    const existingSuppliers = getData<Supplier>(KEYS.SUPPLIERS);
+    if (existingSuppliers.length > 0 && shouldUseCachedApiData(API_CACHE_KEYS.SUPPLIERS)) {
+      return existingSuppliers;
+    }
+  }
+
+  try {
+    const response = await fetch('/api/suppliers', { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error('Unable to load suppliers from the API');
+    }
+
+    const payload = await response.json();
+    const suppliers = Array.isArray(payload) ? payload : [];
+    if (storage) {
+      storage.setItem(KEYS.SUPPLIERS, JSON.stringify(suppliers));
+      markApiCache(API_CACHE_KEYS.SUPPLIERS);
+    }
+    return suppliers;
+  } catch (error) {
+    console.error('Failed to refresh suppliers from API:', error);
+    return getData<Supplier>(KEYS.SUPPLIERS);
+  }
+}
+
+export async function syncSuppliersToApi(suppliers: Supplier[]): Promise<Supplier[]> {
+  if (typeof window === 'undefined') {
+    return suppliers;
+  }
+
+  try {
+    const response = await fetch('/api/suppliers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(suppliers),
+    });
+
+    if (!response.ok) {
+      throw new Error('Unable to sync suppliers to the API');
+    }
+
+    return suppliers;
+  } catch (error) {
+    console.error('Failed to sync suppliers to API:', error);
+    return suppliers;
+  }
+}
+
+export function ensureSupplierMaterialAssociation(supplierId: string | null, materialName: string): Supplier[] {
+  if (!supplierId || !materialName?.trim()) {
+    return db.getSuppliers();
+  }
+
+  const normalizedName = materialName.trim();
+  const suppliers = db.getSuppliers();
+  const updatedSuppliers = suppliers.map((supplier) => {
+    if (supplier.id !== supplierId) return supplier;
+
+    const existingMaterials = supplier.supplierMaterials.filter(Boolean);
+    const alreadyLinked = existingMaterials.some((item) => item.toLowerCase() === normalizedName.toLowerCase());
+    if (alreadyLinked) return supplier;
+
+    return {
+      ...supplier,
+      supplierMaterials: [...existingMaterials, normalizedName],
+    };
+  });
+
+  const didChange = updatedSuppliers.some((supplier, index) => supplier !== suppliers[index]);
+  if (didChange) {
+    db.saveSuppliers(updatedSuppliers);
+    return updatedSuppliers;
+  }
+
+  return suppliers;
+}
+
+export async function refreshSupplierLedgerFromApi(): Promise<SupplierLedgerEntry[]> {
+  if (typeof window === 'undefined') {
+    return getData<SupplierLedgerEntry>(KEYS.SUPPLIER_LEDGER);
+  }
+
+  const storage = getStorage();
+  if (storage) {
+    const existingLedger = getData<SupplierLedgerEntry>(KEYS.SUPPLIER_LEDGER);
+    if (existingLedger.length > 0 && shouldUseCachedApiData(API_CACHE_KEYS.SUPPLIER_LEDGER)) {
+      return existingLedger;
+    }
+  }
+
+  try {
+    const response = await fetch('/api/supplier-ledger', { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error('Unable to load supplier ledger from the API');
+    }
+
+    const payload = await response.json();
+    const ledgerEntries = Array.isArray(payload) ? payload : [];
+    if (storage) {
+      storage.setItem(KEYS.SUPPLIER_LEDGER, JSON.stringify(ledgerEntries));
+      markApiCache(API_CACHE_KEYS.SUPPLIER_LEDGER);
+    }
+    return ledgerEntries;
+  } catch (error) {
+    console.error('Failed to refresh supplier ledger from API:', error);
+    return getData<SupplierLedgerEntry>(KEYS.SUPPLIER_LEDGER);
+  }
+}
+
+export async function syncSupplierLedgerToApi(ledgerEntries: SupplierLedgerEntry[]): Promise<SupplierLedgerEntry[]> {
+  if (typeof window === 'undefined') {
+    return ledgerEntries;
+  }
+
+  try {
+    const response = await fetch('/api/supplier-ledger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ledgerEntries),
+    });
+
+    if (!response.ok) {
+      throw new Error('Unable to sync supplier ledger to the API');
+    }
+
+    return ledgerEntries;
+  } catch (error) {
+    console.error('Failed to sync supplier ledger to API:', error);
+    return ledgerEntries;
+  }
 }
 
 export function normalizeMaterial(material: RawMaterial): RawMaterial {
@@ -223,6 +387,21 @@ export const db = {
 
   getLedger: () => getData<CustomerLedgerEntry>(KEYS.LEDGER),
   saveLedger: (data: CustomerLedgerEntry[]) => saveData<CustomerLedgerEntry>(KEYS.LEDGER, data),
+
+  getSuppliers: () => getData<Supplier>(KEYS.SUPPLIERS),
+  saveSuppliers: (data: Supplier[]) => {
+    const normalized = data;
+    saveData<Supplier>(KEYS.SUPPLIERS, normalized);
+    void syncSuppliersToApi(normalized);
+    return normalized;
+  },
+
+  getSupplierLedger: () => getData<SupplierLedgerEntry>(KEYS.SUPPLIER_LEDGER),
+  saveSupplierLedger: (data: SupplierLedgerEntry[]) => {
+    saveData<SupplierLedgerEntry>(KEYS.SUPPLIER_LEDGER, data);
+    void syncSupplierLedgerToApi(data);
+    return data;
+  },
 
   getSales: () => getData<Sale>(KEYS.SALES),
   saveSales: (data: Sale[]) => saveData<Sale>(KEYS.SALES, data),
@@ -376,6 +555,50 @@ export function addLedgerEntry(
   recalculateCustomerLedger(customerId);
 }
 
+// 2b. Add Supplier Ledger entry
+export function addSupplierLedgerEntry(
+  supplierId: string,
+  date: string,
+  type: SupplierLedgerEntry['type'],
+  referenceId: string,
+  debit: number,
+  credit: number,
+  description: string
+) {
+  const ledger = db.getSupplierLedger();
+  const supplierLedgers = ledger.filter((l) => l.supplierId === supplierId);
+
+  let lastBalance = 0;
+  if (supplierLedgers.length > 0) {
+    const sorted = [...supplierLedgers].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    lastBalance = sorted[sorted.length - 1].balance;
+  } else {
+    const suppliers = db.getSuppliers();
+    const supp = suppliers.find((s) => s.id === supplierId);
+    if (supp) {
+      lastBalance = supp.openingBalance;
+    }
+  }
+
+  const newBalance = lastBalance + debit - credit;
+
+  const newEntry: SupplierLedgerEntry = {
+    id: 'sled_' + Math.random().toString(36).substr(2, 9),
+    supplierId,
+    date,
+    type,
+    referenceId,
+    debit,
+    credit,
+    balance: newBalance,
+    description,
+  };
+
+  ledger.push(newEntry);
+  db.saveSupplierLedger(ledger);
+  recalculateSupplierLedger(supplierId);
+}
+
 // Recalculate customer ledger balance from scratch
 export function recalculateCustomerLedger(customerId: string) {
   const ledger = db.getLedger();
@@ -406,12 +629,50 @@ export function recalculateCustomerLedger(customerId: string) {
   db.saveLedger([...otherCustomersEntries, ...updatedEntries]);
 }
 
+// Recalculate supplier ledger balance from scratch
+export function recalculateSupplierLedger(supplierId: string) {
+  const ledger = db.getSupplierLedger();
+  const otherSupplierEntries = ledger.filter((l) => l.supplierId !== supplierId);
+  const thisSupplierEntries = ledger.filter((l) => l.supplierId === supplierId);
+
+  thisSupplierEntries.sort((a, b) => {
+    const diff = new Date(a.date).getTime() - new Date(b.date).getTime();
+    if (diff !== 0) return diff;
+    if (a.type === 'Opening Balance') return -1;
+    if (b.type === 'Opening Balance') return 1;
+    return 0;
+  });
+
+  const suppliers = db.getSuppliers();
+  const supp = suppliers.find((s) => s.id === supplierId);
+  let runningBalance = supp ? supp.openingBalance : 0;
+
+  const updatedEntries = thisSupplierEntries.map((entry) => {
+    if (entry.type === 'Opening Balance') {
+      runningBalance = entry.debit;
+      return { ...entry, balance: runningBalance };
+    }
+    runningBalance = runningBalance + entry.debit - entry.credit;
+    return { ...entry, balance: runningBalance };
+  });
+
+  db.saveSupplierLedger([...otherSupplierEntries, ...updatedEntries]);
+}
+
 // 3. Delete Customer Ledger entries
 export function deleteLedgerByReference(referenceId: string, customerId: string) {
   const ledger = db.getLedger();
   const filtered = ledger.filter((l) => !(l.referenceId === referenceId && l.customerId === customerId));
   db.saveLedger(filtered);
   recalculateCustomerLedger(customerId);
+}
+
+// 3b. Delete Supplier Ledger entries
+export function deleteSupplierLedgerByReference(referenceId: string, supplierId: string) {
+  const ledger = db.getSupplierLedger();
+  const filtered = ledger.filter((l) => !(l.referenceId === referenceId && l.supplierId === supplierId));
+  db.saveSupplierLedger(filtered);
+  recalculateSupplierLedger(supplierId);
 }
 
 // Get outstanding balance for customer
@@ -421,6 +682,19 @@ export function getCustomerOutstandingBalance(customerId: string): number {
     const customers = db.getCustomers();
     const cust = customers.find((c) => c.id === customerId);
     return cust ? cust.openingBalance : 0;
+  }
+
+  const sorted = [...ledger].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return sorted[sorted.length - 1].balance;
+}
+
+// Get outstanding balance for supplier
+export function getSupplierOutstandingBalance(supplierId: string): number {
+  const ledger = db.getSupplierLedger().filter((l) => l.supplierId === supplierId);
+  if (ledger.length === 0) {
+    const suppliers = db.getSuppliers();
+    const supp = suppliers.find((s) => s.id === supplierId);
+    return supp ? supp.openingBalance : 0;
   }
 
   const sorted = [...ledger].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
