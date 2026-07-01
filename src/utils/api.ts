@@ -125,12 +125,13 @@ export function normalizeMaterial(material: RawMaterial): RawMaterial {
   const unit = material?.unit?.toLowerCase() || '';
 
   let targetUnit = unit;
-  let conversionFactor = material.conversionFactor && material.conversionFactor > 0 ? material.conversionFactor : 1;
+  const defaultConversionFactor = material.conversionFactor && material.conversionFactor > 0 ? material.conversionFactor : 1;
+  let conversionFactor = defaultConversionFactor;
   let quantity = material.quantity || 0;
 
   if (name.includes('plaster')) {
     targetUnit = 'bags';
-    conversionFactor = material.conversionFactor && material.conversionFactor > 0 ? material.conversionFactor : 25;
+    conversionFactor = defaultConversionFactor > 0 ? defaultConversionFactor : 25;
     if (unit === 'kg') {
       quantity = quantity / conversionFactor;
     } else if (unit === 'g') {
@@ -140,27 +141,27 @@ export function normalizeMaterial(material: RawMaterial): RawMaterial {
     }
   } else if (name.includes('tape')) {
     targetUnit = 'rolls';
-    conversionFactor = 272;
+    conversionFactor = defaultConversionFactor > 0 ? defaultConversionFactor : 272;
     if (unit === 'feet') {
-      quantity = quantity / 272;
+      quantity = quantity / conversionFactor;
     }
   } else if (name.includes('brown paper')) {
     targetUnit = 'rims';
-    conversionFactor = 500;
+    conversionFactor = defaultConversionFactor > 0 ? defaultConversionFactor : 500;
     if (unit === 'pieces') {
-      quantity = quantity / 500;
+      quantity = quantity / conversionFactor;
     }
   } else if (name.includes('panni')) {
     targetUnit = 'kg';
-    conversionFactor = 50;
+    conversionFactor = defaultConversionFactor > 0 ? defaultConversionFactor : 50;
     if (unit === 'pieces') {
-      quantity = quantity / 50;
+      quantity = quantity / conversionFactor;
     }
   } else if (name.includes('packing shopper')) {
     targetUnit = 'kg';
-    conversionFactor = 40;
+    conversionFactor = defaultConversionFactor > 0 ? defaultConversionFactor : 40;
     if (unit === 'pieces') {
-      quantity = quantity / 40;
+      quantity = quantity / conversionFactor;
     }
   }
 

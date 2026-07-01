@@ -13,6 +13,7 @@ export interface RawMaterial {
   costPerUnit: number; // cost per stock unit in Rupees
   minThreshold: number; // for low stock alert
   conversionFactor: number; // e.g. 272 feet per roll, 500 pieces per rim, 50 pieces per kg
+  panniType?: string;
   updatedAt: string;
 }
 

@@ -10,17 +10,26 @@ export default function FinalProductionPage() {
   const latestDryProduction = [...db.getDryProduction()]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
+  const panniMaterials = materials.filter((m) => m.name.toLowerCase().includes('panni'));
+  const panniTypeOptions = Array.from(new Set(panniMaterials.map((m) => (m.panniType || 'Standard Panni').trim())));
+
   // Form states
   const [date, setDate] = useState(getTodayStr());
   const [dryReceived, setDryReceived] = useState<number>(latestDryProduction?.dryPlatesProduced ?? 1000);
   const [finalProduced, setFinalProduced] = useState<number>(950);
-  const [panniType, setPanniType] = useState('Standard Panni');
+  const [panniType, setPanniType] = useState(panniTypeOptions[0] || 'Standard Panni');
 
   useEffect(() => {
     if (latestDryProduction) {
       setDryReceived(latestDryProduction.dryPlatesProduced);
     }
   }, [latestDryProduction?.id]);
+
+  useEffect(() => {
+    if (panniTypeOptions.length === 0) return;
+    setPanniType((current) => panniTypeOptions.includes(current) ? current : panniTypeOptions[0]);
+  }, [panniTypeOptions.join('|')]);
+
   const [notes, setNotes] = useState('');
 
   // Selected Record details view
@@ -35,6 +44,19 @@ export default function FinalProductionPage() {
   };
 
   // Live Formula Consumption Preview Generator
+  const getSelectedPanniMaterial = () => {
+    return materials.find((m) => m.name.toLowerCase().includes('panni') && (m.panniType || 'Standard Panni').toLowerCase() === panniType.toLowerCase())
+      || materials.find((m) => m.name.toLowerCase().includes('panni'));
+  };
+
+  const getFormulaMaterial = (form: Formula) => {
+    const normalizedName = form.materialName.toLowerCase();
+    if (normalizedName === 'panni') {
+      return getSelectedPanniMaterial();
+    }
+    return materials.find((m) => m.name.toLowerCase() === normalizedName);
+  };
+
   const getConsumptionPreview = (quantity: number) => {
     return formulas
       .filter((form) => !form.materialName.toLowerCase().includes('plaster'))
@@ -43,7 +65,7 @@ export default function FinalProductionPage() {
       let unitUsed = form.unit;
 
       // Match raw material from stock to check its unit
-      const mat = materials.find((m) => m.name.toLowerCase() === form.materialName.toLowerCase());
+      const mat = getFormulaMaterial(form);
       if (mat) {
         const converted = convertFormulaAmountToStock(amountNeeded, form.unit, mat);
         amountNeeded = converted.amount;
@@ -106,17 +128,20 @@ export default function FinalProductionPage() {
     // Deduct raw materials from stock list & log in 'InventoryTransaction'
     materials.forEach((mat) => {
       const consumption = finalConsumptions.find((c) => c.materialName.toLowerCase() === mat.name.toLowerCase());
-      if (consumption && !mat.name.toLowerCase().includes('plaster')) {
-        // Log transaction of type 'out'
-        adjustMaterialStock(
-          mat.id,
-          consumption.calculatedAmount,
-          'out',
-          0, // 0 procurement cost for production usage
-          date,
-          `Automated deduction for final production run: ${finalProduced} plates (Ref: ${activeId})`
-        );
+      if (!consumption || mat.name.toLowerCase().includes('plaster')) return;
+      if (mat.name.toLowerCase().includes('panni') && (mat.panniType || 'Standard Panni').toLowerCase() !== panniType.toLowerCase()) {
+        return;
       }
+
+      // Log transaction of type 'out'
+      adjustMaterialStock(
+        mat.id,
+        consumption.calculatedAmount,
+        'out',
+        0, // 0 procurement cost for production usage
+        date,
+        `Automated deduction for final production run: ${finalProduced} plates (Ref: ${activeId})`
+      );
     });
 
     const wasteQuantity = Math.max(0, dryReceived - finalProduced);
@@ -266,12 +291,17 @@ export default function FinalProductionPage() {
                 onChange={(e) => setPanniType(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
               >
-                <option value="Standard Panni">Standard Panni</option>
-                <option value="Premium Panni">Premium Panni</option>
-                <option value="Heavy Panni">Heavy Panni</option>
-                <option value="Soft Panni">Soft Panni</option>
+                {panniTypeOptions.length > 0 ? (
+                  panniTypeOptions.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))
+                ) : (
+                  ['Standard Panni', 'Premium Panni', 'Heavy Panni', 'Soft Panni'].map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))
+                )}
               </select>
-              <p className="text-[10px] text-slate-400 mt-1 font-medium">This selection is stored with the batch for tracking and reporting.</p>
+              <p className="text-[10px] text-slate-400 mt-1 font-medium">This selection is stored with the batch and uses the matching inventory Panni variant for stock deduction.</p>
             </div>
 
             <button

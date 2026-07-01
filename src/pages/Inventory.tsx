@@ -36,6 +36,8 @@ export default function Inventory() {
   const [newMatQuantity, setNewMatQuantity] = useState(0);
   const [newMatCost, setNewMatCost] = useState(0);
   const [newMatThreshold, setNewMatThreshold] = useState(100);
+  const [newMatPanniType, setNewMatPanniType] = useState('Standard Panni');
+  const panniTypes = ['Standard Panni', 'Premium Panni', 'Heavy Panni', 'Soft Panni'];
 
   // Restock form state
   const [restockQty, setRestockQty] = useState(0);
@@ -75,13 +77,21 @@ export default function Inventory() {
     e.preventDefault();
     if (!newMatName.trim()) return;
 
-    // Check for duplicate name
-    if (materials.some(m => m.name.toLowerCase() === newMatName.trim().toLowerCase())) {
-      showToast('error', 'A raw material with this name already exists.');
+    const normalizedMaterialName = newMatName.trim();
+    const isPanniMaterial = normalizedMaterialName.toLowerCase().includes('panni');
+    // Check for duplicate name. For panni, allow same name if the panni type differs.
+    if (materials.some((m) => {
+      const sameName = m.name.toLowerCase() === normalizedMaterialName.toLowerCase();
+      if (!sameName) return false;
+      if (isPanniMaterial) {
+        return (m.panniType || '').toLowerCase() === newMatPanniType.toLowerCase();
+      }
+      return true;
+    })) {
+      showToast('error', 'A raw material with this name and type already exists.');
       return;
     }
 
-    const normalizedMaterialName = newMatName.trim();
     const selectedUnit = normalizedMaterialName.toLowerCase().includes('plaster') ? 'bags' : newMatUnit;
     const suggestedConversionFactor = getSuggestedConversionFactor(selectedUnit, normalizedMaterialName);
     const finalConversionFactor = newMatConversionFactor > 1 ? newMatConversionFactor : suggestedConversionFactor;
@@ -94,6 +104,7 @@ export default function Inventory() {
       costPerUnit: newMatCost,
       minThreshold: newMatThreshold,
       conversionFactor: finalConversionFactor > 0 ? finalConversionFactor : 1,
+      panniType: isPanniMaterial ? newMatPanniType : undefined,
       updatedAt: restockDate
     };
 
@@ -126,6 +137,7 @@ export default function Inventory() {
     setNewMatQuantity(0);
     setNewMatCost(0);
     setNewMatThreshold(100);
+    setNewMatPanniType('Standard Panni');
     setShowAddMaterialModal(false);
     showToast('success', `${newMaterial.name} created successfully.`);
   };
@@ -276,7 +288,7 @@ export default function Inventory() {
                             <div>
                               <p className="text-slate-800">{mat.name}</p>
                               <p className="text-[9px] text-slate-400 font-medium mt-0.5">
-                                {getConversionLabel(mat.unit)}: {mat.conversionFactor}
+                                {mat.panniType ? <><span className="uppercase tracking-wider">{mat.panniType}</span> • </> : null}{getConversionLabel(mat.unit)}: {mat.conversionFactor}
                               </p>
                               {isLow && <span className="text-[9px] text-rose-500 font-bold uppercase tracking-wider">Critical Low</span>}
                             </div>
@@ -449,6 +461,20 @@ export default function Inventory() {
                   />
                 </div>
               </div>
+              {newMatName.toLowerCase().includes('panni') && (
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Panni Type</label>
+                  <select
+                    value={newMatPanniType}
+                    onChange={(e) => setNewMatPanniType(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+                  >
+                    {panniTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -551,6 +577,35 @@ export default function Inventory() {
                   onChange={(e) => setEditingMaterial({ ...editingMaterial, minThreshold: parseInt(e.target.value) || 0 })}
                   className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
                 />
+              </div>
+
+              {editingMaterial.name.toLowerCase().includes('panni') && (
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Panni Type</label>
+                  <select
+                    value={editingMaterial.panniType || 'Standard Panni'}
+                    onChange={(e) => setEditingMaterial({ ...editingMaterial, panniType: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+                  >
+                    {panniTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Quantity ({editingMaterial.unit})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={editingMaterial.quantity}
+                  onChange={(e) => setEditingMaterial({ ...editingMaterial, quantity: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Set quantity to 0 or any value needed for production adjustments.</p>
               </div>
 
               <div>
