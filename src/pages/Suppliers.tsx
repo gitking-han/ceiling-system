@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Users, Search, Plus, Trash2, Edit2, AlertCircle, CheckCircle, Landmark, X, ClipboardList } from 'lucide-react';
 import { db, getTodayStr, addSupplierLedgerEntry, getSupplierOutstandingBalance, deleteSupplierLedgerByReference, refreshSuppliersFromApi, refreshSupplierLedgerFromApi } from '../utils/api';
 import { Supplier, SupplierLedgerEntry, Payment } from '../types';
@@ -65,12 +65,12 @@ export default function SuppliersPage() {
       const updated = suppliers.map((s) =>
         s.id === editingSupplier.id
           ? {
-              ...s,
-              name: name.trim(),
-              phone: phone.trim(),
-              address: address.trim(),
-              supplierMaterials: materialList,
-            }
+            ...s,
+            name: name.trim(),
+            phone: phone.trim(),
+            address: address.trim(),
+            supplierMaterials: materialList,
+          }
           : s
       );
       db.saveSuppliers(updated);
@@ -188,6 +188,23 @@ export default function SuppliersPage() {
     ? ledger.filter((l) => l.supplierId === selectedSupplierId).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     : [];
 
+  const [isMaterialsOpen, setIsMaterialsOpen] = useState(false);
+  const materialsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        materialsRef.current &&
+        !materialsRef.current.contains(event.target as Node)
+      ) {
+        setIsMaterialsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <div className="space-y-6">
       {toast && (
@@ -232,11 +249,10 @@ export default function SuppliersPage() {
                   <div
                     key={supplier.id}
                     onClick={() => setSelectedSupplierId(supplier.id)}
-                    className={`p-3 rounded-xl border transition-all cursor-pointer text-xs ${
-                      isSelected
+                    className={`p-3 rounded-xl border transition-all cursor-pointer text-xs ${isSelected
                         ? 'bg-indigo-50/50 border-indigo-200 shadow-sm shadow-indigo-100/10'
                         : 'bg-slate-50/50 border-slate-100 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="font-bold text-slate-800">{supplier.name}</span>
@@ -329,13 +345,12 @@ export default function SuppliersPage() {
                           <tr key={ent.id} className="hover:bg-slate-50/40">
                             <td className="py-2.5 px-2 font-mono text-slate-400">{ent.date}</td>
                             <td className="py-2.5 px-2">
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border capitalize ${
-                                ent.type === 'Opening Balance'
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border capitalize ${ent.type === 'Opening Balance'
                                   ? 'bg-slate-100 text-slate-700 border-slate-200'
                                   : ent.type === 'Purchase'
-                                  ? 'bg-rose-50 text-rose-700 border-rose-100'
-                                  : 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                              }`}>
+                                    ? 'bg-rose-50 text-rose-700 border-rose-100'
+                                    : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                }`}>
                                 {ent.type}
                               </span>
                             </td>
@@ -395,31 +410,81 @@ export default function SuppliersPage() {
                 <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Address</label>
                 <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800" />
               </div>
-              <div>
-                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Materials Supplied</label>
-                <select
-                  multiple
-                  size={Math.min(inventoryMaterialNames.length || 4, 6)}
-                  value={selectedMaterialNames}
-                  onChange={(event) => {
-                    const nextValues = Array.from(event.target.selectedOptions, (option) => option.value);
-                    setSelectedMaterialNames(nextValues);
-                  }}
-                  className="w-full min-h-28 px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
-                >
-                  {inventoryMaterialNames.length > 0 ? (
-                    inventoryMaterialNames.map((materialName) => (
-                      <option key={materialName} value={materialName}>
-                        {materialName}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">No inventory materials yet</option>
+              <div ref={materialsRef} className="space-y-2">
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">
+                  Materials Supplied
+                </label>
+
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsMaterialsOpen(!isMaterialsOpen)}
+                    className="w-full min-h-[48px] px-3 py-2 border border-slate-200 rounded-xl bg-white text-left flex flex-wrap gap-2 items-center hover:border-indigo-400 transition"
+                  >
+                    {selectedMaterialNames.length === 0 ? (
+                      <span className="text-slate-400">Select materials...</span>
+                    ) : (
+                      selectedMaterialNames.map((material) => (
+                        <span
+                          key={material}
+                          className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-sm font-medium"
+                        >
+                          {material}
+                        </span>
+                      ))
+                    )}
+
+                    <span className="ml-auto text-slate-500">
+                      {isMaterialsOpen ? "▲" : "▼"}
+                    </span>
+                  </button>
+
+                  {isMaterialsOpen && (
+                    <div className="relative z-10 mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                      {inventoryMaterialNames.length > 0 ? (
+                        inventoryMaterialNames.map((material) => {
+                          const selected = selectedMaterialNames.includes(material);
+
+                          return (
+                            <button
+                              key={material}
+                              type="button"
+                              onClick={() => {
+                                if (selected) {
+                                  setSelectedMaterialNames(
+                                    selectedMaterialNames.filter((m) => m !== material)
+                                  );
+                                } else {
+                                  setSelectedMaterialNames([
+                                    ...selectedMaterialNames,
+                                    material,
+                                  ]);
+                                }
+                              }}
+                              className={`w-full px-4 py-3 flex justify-between items-center hover:bg-slate-50 transition ${selected ? "bg-indigo-50 text-indigo-700 font-medium" : ""}`}
+                            >
+                              <span>{material}</span>
+
+                              {selected && (
+                                <span className="text-lg font-bold text-indigo-600">✓</span>
+                              )}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="px-4 py-3 text-slate-400">
+                          No inventory materials yet
+                        </div>
+                      )}
+                    </div>
                   )}
-                </select>
-                <p className="text-[10px] text-slate-400 mt-1">Hold Ctrl/Cmd to select multiple materials from the current inventory list.</p>
+                </div>
+
+                <p className="text-xs text-slate-400">
+                  Click materials to select or deselect them.
+                </p>
               </div>
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-xs uppercase tracking-wider">Save Supplier</button>
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-xs uppercase tracking-wider mt-2">Save Supplier</button>
             </form>
           </div>
         </div>
