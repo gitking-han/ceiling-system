@@ -70,6 +70,12 @@ export default function WetProductionPage() {
       return;
     }
 
+    // Check if we have sufficient plaster paris stock
+    if (deduction.material.quantity < deduction.amount) {
+      setError(`⚠️ Insufficient stock! This operation requires more stock. Need ${deduction.amount.toLocaleString()} ${deduction.unit} of ${deduction.formulaName}, but only ${deduction.material.quantity.toLocaleString()} ${deduction.unit} available. Stock is finished or not enough.`);
+      return;
+    }
+
     if (editingRecord) {
       restorePlasterDeduction(editingRecord);
       const updated = records.map((r) =>
@@ -149,6 +155,20 @@ export default function WetProductionPage() {
 
   return (
     <div className="space-y-6">
+      {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Wet Plates Logged</p>
+          <p className="mt-2 text-xl font-display font-bold text-slate-900">{records.reduce((sum, item) => sum + item.wetPlatesProduced, 0).toLocaleString()} pcs</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Plaster Used</p>
+          <p className="mt-2 text-xl font-display font-bold text-slate-900">{records.reduce((sum, item) => sum + item.plasterParisUsed, 0).toLocaleString()}</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Batches Recorded</p>
+          <p className="mt-2 text-xl font-display font-bold text-slate-900">{records.length}</p>
+        </div>
+      </div> */}
       {toast && (
         <div className="fixed bottom-5 right-5 z-50 px-4 py-3 bg-emerald-600 text-white rounded-xl border border-emerald-500 flex items-center gap-2 text-xs font-semibold shadow-lg">
           <FileSpreadsheet size={16} />

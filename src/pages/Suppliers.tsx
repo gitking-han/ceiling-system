@@ -240,7 +240,7 @@ export default function SuppliersPage() {
             />
           </div>
 
-          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+          <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 500 }}>
             {filteredSuppliers.length > 0 ? (
               filteredSuppliers.map((supplier) => {
                 const outstanding = getSupplierOutstandingBalance(supplier.id);
@@ -361,7 +361,7 @@ export default function SuppliersPage() {
                               {ent.credit > 0 ? `Rs. ${ent.credit.toLocaleString()}` : '—'}
                             </td>
                             <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-800">Rs. {Math.round(ent.balance).toLocaleString()}</td>
-                            <td className="py-2.5 px-2 text-[11px] text-slate-400 max-w-[160px] truncate" title={ent.description}>{ent.description}</td>
+                            <td className="py-2.5 px-2 text-[11px] text-slate-400 truncate" title={ent.description} style={{ maxWidth: 160 }}>{ent.description}</td>
                           </tr>
                         ))
                       ) : (
@@ -419,7 +419,8 @@ export default function SuppliersPage() {
                   <button
                     type="button"
                     onClick={() => setIsMaterialsOpen(!isMaterialsOpen)}
-                    className="w-full min-h-[48px] px-3 py-2 border border-slate-200 rounded-xl bg-white text-left flex flex-wrap gap-2 items-center hover:border-indigo-400 transition"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-left flex flex-wrap gap-2 items-center hover:border-indigo-400 transition"
+                    style={{ minHeight: 48 }}
                   >
                     {selectedMaterialNames.length === 0 ? (
                       <span className="text-slate-400">Select materials...</span>

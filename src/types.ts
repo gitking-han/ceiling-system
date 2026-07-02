@@ -112,6 +112,17 @@ export interface Supplier {
   createdAt: string;
 }
 
+export interface PanniType {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  costPerUnit: number;
+  minThreshold: number;
+  conversionFactor: number;
+  createdAt: string;
+}
+
 export interface SupplierLedgerEntry {
   id: string;
   supplierId: string;

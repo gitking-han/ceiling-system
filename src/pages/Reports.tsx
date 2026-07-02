@@ -1,20 +1,62 @@
-import React, { useState } from 'react';
-import { FileBarChart2, Printer, Search, Calendar, Landmark, Receipt, AlertTriangle, Droplets, Sun, CheckSquare, Layers, HelpCircle, CheckCircle } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import {
+  Printer,
+  Search,
+  Landmark,
+  Receipt,
+  AlertTriangle,
+  Droplets,
+  Sun,
+  CheckSquare,
+  Layers,
+  FileBarChart2,
+  CheckCircle,
+} from 'lucide-react';
 import { db, getTodayStr, getCustomerOutstandingBalance } from '../utils/api';
 
-export default function ReportsPage() {
-  const [activeReport, setActiveReport] = useState<string>('sales');
+type ReportScope = 'daily' | 'weekly' | 'monthly' | 'custom';
 
-  // Date filters (defaults to month-to-date)
+function formatCurrency(value: number) {
+  return `Rs. ${Math.round(value).toLocaleString()}`;
+}
+
+function startOfWeek(dateString: string) {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const dayOfWeek = date.getDay();
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  date.setDate(date.getDate() + diff);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function endOfWeek(dateString: string) {
+  const start = startOfWeek(dateString);
+  const [year, month, day] = start.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + 6);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function startOfMonth(dateString: string) {
+  return dateString.substring(0, 8) + '01';
+}
+
+function endOfMonth(dateString: string) {
+  const [year, month] = dateString.split('-').map(Number);
+  const nextMonth = new Date(year, month, 1);
+  const lastDay = new Date(nextMonth.getTime() - 24 * 60 * 60 * 1000).getDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+}
+
+export default function ReportsPage() {
   const today = getTodayStr();
-  const defaultStart = today.substring(0, 8) + '01'; // First day of current month
+  const defaultStart = today.substring(0, 8) + '01';
   const [startDate, setStartDate] = useState(defaultStart);
   const [endDate, setEndDate] = useState(today);
-
-  // Search keyword filter
+  const [reportScope, setReportScope] = useState<ReportScope>('monthly');
   const [searchQuery, setSearchQuery] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
 
-  // Loaded database snapshots
   const sales = db.getSales();
   const expenses = db.getExpenses();
   const waste = db.getWasteRecords();
@@ -22,251 +64,114 @@ export default function ReportsPage() {
   const dry = db.getDryProduction();
   const final = db.getFinalProduction();
   const customers = db.getCustomers();
+  const suppliers = db.getSuppliers();
   const txs = db.getTransactions();
+  const materials = db.getMaterials();
 
-  const [toast, setToast] = useState<string | null>(null);
+  const reportRange = useMemo(() => {
+    const anchor = startDate || endDate || today;
+    if (reportScope === 'daily') {
+      return { start: anchor, end: anchor, label: 'Daily Report' };
+    }
+    if (reportScope === 'weekly') {
+      return { start: startOfWeek(anchor), end: endOfWeek(anchor), label: 'Weekly Report' };
+    }
+    if (reportScope === 'monthly') {
+      return { start: startOfMonth(anchor), end: endOfMonth(anchor), label: 'Monthly Report' };
+    }
+    return { start: startDate, end: endDate, label: 'Custom Range Report' };
+  }, [reportScope, startDate, endDate, today]);
+
+  const isWithinRange = (dateStr: string) => {
+    if (!dateStr) return false;
+    return dateStr >= reportRange.start && dateStr <= reportRange.end;
+  };
+
+  const matchesSearch = (value: string) => {
+    if (!searchQuery.trim()) return true;
+    return value.toLowerCase().includes(searchQuery.toLowerCase());
+  };
+
+  const filteredSales = sales.filter((s) => isWithinRange(s.date) && matchesSearch(`${s.customerName} ${s.invoiceNumber} ${s.productName}`));
+  const filteredExpenses = expenses.filter((e) => isWithinRange(e.date) && matchesSearch(`${e.category} ${e.description}`));
+  const filteredWaste = waste.filter((w) => isWithinRange(w.date) && matchesSearch(w.notes));
+  const filteredWet = wet.filter((w) => isWithinRange(w.productionDate));
+  const filteredDry = dry.filter((d) => isWithinRange(d.date));
+  const filteredFinal = final.filter((f) => isWithinRange(f.date));
+  const filteredCustomers = customers.filter((c) => matchesSearch(`${c.name} ${c.phone} ${c.address}`));
+  const filteredTxs = txs.filter((t) => isWithinRange(t.date) && matchesSearch(`${t.materialName} ${t.notes}`));
+
+  const salesQty = filteredSales.reduce((sum, s) => sum + s.quantity, 0);
+  const salesGross = filteredSales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const discounts = filteredSales.reduce((sum, s) => sum + s.discount, 0);
+  const netRevenue = filteredSales.reduce((sum, s) => sum + s.grandTotal, 0);
+
+  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const expenseByCategory = filteredExpenses.reduce((acc, e) => {
+    acc[e.category] = (acc[e.category] || 0) + e.amount;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const totalWasteQty = filteredWaste.reduce((sum, w) => sum + w.quantity, 0);
+  const wetLoss = filteredWaste.filter((w) => w.source === 'wet').reduce((sum, w) => sum + w.quantity, 0);
+  const dryLoss = filteredWaste.filter((w) => w.source === 'dry').reduce((sum, w) => sum + w.quantity, 0);
+
+  const totalWetProduced = filteredWet.reduce((sum, r) => sum + r.wetPlatesProduced, 0);
+  const totalDryProduced = filteredDry.reduce((sum, r) => sum + r.dryPlatesProduced, 0);
+  const totalFinalProduced = filteredFinal.reduce((sum, r) => sum + r.finalPlatesProduced, 0);
+  const totalWetReceivedToDry = filteredDry.reduce((sum, r) => sum + r.wetPlatesReceived, 0);
+  const totalDryReceivedToFinal = filteredFinal.reduce((sum, r) => sum + r.dryPlatesReceived, 0);
+  const soldQty = filteredSales.reduce((sum, s) => sum + s.quantity, 0);
+
+  const remainingWet = Math.max(0, totalWetProduced - totalWetReceivedToDry);
+  const remainingDry = Math.max(0, totalDryProduced - totalDryReceivedToFinal);
+  const remainingFinal = Math.max(0, totalFinalProduced - soldQty);
+
+  const profit = netRevenue - totalExpenses;
+  const totalReceivables = filteredCustomers.reduce((sum, c) => sum + getCustomerOutstandingBalance(c.id), 0);
+  const procurementCost = filteredTxs.filter((t) => t.type === 'in').reduce((sum, t) => sum + t.cost, 0);
+
+  const handlePrintReport = () => {
+    window.print();
+  };
 
   const triggerToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Date range checker helper
-  const isWithinRange = (dateStr: string) => {
-    if (!dateStr) return false;
-    return dateStr >= startDate && dateStr <= endDate;
-  };
-
-  // Dynamic calculations depending on active report
-  let summaryNode: React.ReactNode = null;
-  let reportTitle = '';
-  let reportHeaders: string[] = [];
-  let reportRows: any[] = [];
-
-  if (activeReport === 'sales') {
-    reportTitle = 'Sales & Revenue Despatch Report';
-    const filteredSales = sales.filter((s) => isWithinRange(s.date) && s.customerName.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const totalQty = filteredSales.reduce((sum, s) => sum + s.quantity, 0);
-    const totalGross = filteredSales.reduce((sum, s) => sum + s.totalAmount, 0);
-    const totalDiscounts = filteredSales.reduce((sum, s) => sum + s.discount, 0);
-    const netRevenue = filteredSales.reduce((sum, s) => sum + s.grandTotal, 0);
-
-    summaryNode = (
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
-        <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg">
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Net Sales Volume</p>
-          <p className="font-mono text-sm font-extrabold text-slate-800 mt-1">{totalQty.toLocaleString()} pcs</p>
-        </div>
-        <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg">
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Gross Booked Bills</p>
-          <p className="font-mono text-sm font-extrabold text-slate-800 mt-1">Rs. {Math.round(totalGross).toLocaleString()}</p>
-        </div>
-        <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg">
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Discounts Subsidized</p>
-          <p className="font-mono text-sm font-extrabold text-red-600 mt-1">Rs. {Math.round(totalDiscounts).toLocaleString()}</p>
-        </div>
-        <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
-          <p className="text-[9px] text-emerald-800 font-bold uppercase tracking-wider">Net Revenue Receivable</p>
-          <p className="font-mono text-sm font-extrabold text-emerald-700 mt-1">Rs. {Math.round(netRevenue).toLocaleString()}</p>
-        </div>
-      </div>
-    );
-
-    reportHeaders = ['Invoice No', 'Dispatch Date', 'Customer', 'Product Grade', 'Qty', 'Billed Rate', 'Net Billing'];
-    reportRows = filteredSales.reverse().map((s) => [
-      s.invoiceNumber,
-      s.date,
-      s.customerName,
-      s.productName,
-      s.quantity.toLocaleString() + ' pcs',
-      'Rs. ' + s.rate,
-      'Rs. ' + Math.round(s.grandTotal).toLocaleString()
-    ]);
-  } else if (activeReport === 'expenses') {
-    reportTitle = 'Factory Operations Expenses Report';
-    const filteredExpenses = expenses.filter((e) => isWithinRange(e.date) && e.description.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const totalExp = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
-    const byCategory = filteredExpenses.reduce((acc, e) => {
-      acc[e.category] = (acc[e.category] || 0) + e.amount;
-      return acc;
-    }, {} as Record<string, number>);
-
-    summaryNode = (
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-5 text-[10px]">
-        <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg sm:col-span-1">
-          <p className="text-[9px] text-rose-800 font-bold uppercase tracking-wider">Total Disbursements</p>
-          <p className="font-mono text-sm font-extrabold text-rose-700 mt-1">Rs. {Math.round(totalExp).toLocaleString()}</p>
-        </div>
-        <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-          <p className="text-[9px] text-slate-400 font-bold uppercase">Labour Wages</p>
-          <p className="font-mono font-bold text-slate-700 mt-1">Rs. {Math.round(byCategory['Labour'] || 0).toLocaleString()}</p>
-        </div>
-        <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-          <p className="text-[9px] text-slate-400 font-bold uppercase">Electricity</p>
-          <p className="font-mono font-bold text-slate-700 mt-1">Rs. {Math.round(byCategory['Electricity'] || 0).toLocaleString()}</p>
-        </div>
-        <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-          <p className="text-[9px] text-slate-400 font-bold uppercase">Gas bill</p>
-          <p className="font-mono font-bold text-slate-700 mt-1">Rs. {Math.round(byCategory['Gas'] || 0).toLocaleString()}</p>
-        </div>
-        <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-          <p className="text-[9px] text-slate-400 font-bold uppercase">Transport Freight</p>
-          <p className="font-mono font-bold text-slate-700 mt-1">Rs. {Math.round(byCategory['Transport'] || 0).toLocaleString()}</p>
-        </div>
-      </div>
-    );
-
-    reportHeaders = ['Paid Date', 'Expense Category', 'Disbursement Sum', 'Operational Memo'];
-    reportRows = filteredExpenses.reverse().map((e) => [
-      e.date,
-      e.category,
-      'Rs. ' + e.amount.toLocaleString(),
-      e.description
-    ]);
-  } else if (activeReport === 'waste') {
-    reportTitle = 'Defects &amp; Breakage Analysis';
-    const filteredWaste = waste.filter((w) => isWithinRange(w.date) && w.notes.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const totalDamaged = filteredWaste.reduce((sum, w) => sum + w.quantity, 0);
-    const wetLoss = filteredWaste.filter(w => w.source === 'wet').reduce((sum, w) => sum + w.quantity, 0);
-    const dryLoss = filteredWaste.filter(w => w.source === 'dry').reduce((sum, w) => sum + w.quantity, 0);
-
-    summaryNode = (
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-5">
-        <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg">
-          <p className="text-[9px] text-rose-800 font-bold uppercase tracking-wider">Total Defective Plates</p>
-          <p className="font-mono text-sm font-extrabold text-rose-700 mt-1">{totalDamaged.toLocaleString()} pcs</p>
-        </div>
-        <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-          <p className="text-[9px] text-slate-400 font-bold uppercase">Molding Section losses</p>
-          <p className="font-mono font-bold text-slate-700 mt-1">{wetLoss.toLocaleString()} pcs</p>
-        </div>
-        <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-          <p className="text-[9px] text-slate-400 font-bold uppercase">Drying Chamber losses</p>
-          <p className="font-mono font-bold text-slate-700 mt-1">{dryLoss.toLocaleString()} pcs</p>
-        </div>
-      </div>
-    );
-
-    reportHeaders = ['Log Date', 'Damage Source', 'Breakage Quantity', 'Incident Memo'];
-    reportRows = filteredWaste.reverse().map((w) => [
-      w.date,
-      w.source.toUpperCase(),
-      w.quantity.toLocaleString() + ' pcs',
-      w.notes
-    ]);
-  } else if (activeReport === 'production') {
-    reportTitle = 'Production Manufacturing Report';
-    const filteredWet = wet.filter((r) => isWithinRange(r.productionDate));
-    const filteredDry = dry.filter((r) => isWithinRange(r.date));
-    const filteredFinal = final.filter((r) => isWithinRange(r.date));
-
-    const totalWetMolded = filteredWet.reduce((sum, r) => sum + r.wetPlatesProduced, 0);
-    const totalDryProcessed = filteredDry.reduce((sum, r) => sum + r.dryPlatesProduced, 0);
-    const totalFinalFinished = filteredFinal.reduce((sum, r) => sum + r.finalPlatesProduced, 0);
-
-    summaryNode = (
-      <div className="grid grid-cols-3 gap-4 mb-5">
-        <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg">
-          <p className="text-[9px] text-indigo-800 font-bold uppercase tracking-wider">Wet Plates Molded</p>
-          <p className="font-mono text-sm font-extrabold text-indigo-700 mt-1">{totalWetMolded.toLocaleString()} pcs</p>
-        </div>
-        <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
-          <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wider">Dry Chamber Check-out</p>
-          <p className="font-mono text-sm font-extrabold text-amber-700 mt-1">{totalDryProcessed.toLocaleString()} pcs</p>
-        </div>
-        <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
-          <p className="text-[9px] text-emerald-800 font-bold uppercase tracking-wider">Final Finished Assembly</p>
-          <p className="font-mono text-sm font-extrabold text-emerald-700 mt-1">{totalFinalFinished.toLocaleString()} pcs</p>
-        </div>
-      </div>
-    );
-
-    // Dynamic compilation of active stages for display
-    reportHeaders = ['Date Stamp', 'Department Stage', 'Input Quantity', 'Output Quantity', 'Operational Notes'];
-    
-    // Stitch all together for chronologial list
-    const stitched: any[] = [];
-    filteredWet.forEach(w => stitched.push({ date: w.productionDate, dept: 'MOLDING (WET)', in: '—', out: w.wetPlatesProduced, notes: w.notes }));
-    filteredDry.forEach(d => stitched.push({ date: d.date, dept: 'CHAMBER (DRY)', in: d.wetPlatesReceived, out: d.dryPlatesProduced, notes: d.notes }));
-    filteredFinal.forEach(f => stitched.push({ date: f.date, dept: 'ASSEMBLY (FINAL)', in: f.dryPlatesReceived, out: f.finalPlatesProduced, notes: f.notes }));
-
-    reportRows = stitched.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(s => [
-      s.date,
-      s.dept,
-      s.in === '—' ? '—' : s.in.toLocaleString() + ' pcs',
-      s.out.toLocaleString() + ' pcs',
-      s.notes || '—'
-    ]);
-  } else if (activeReport === 'customers') {
-    reportTitle = 'Customers Receivables Balance Statement';
-    const filteredCust = customers.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const totalOutstanding = filteredCust.reduce((sum, c) => sum + getCustomerOutstandingBalance(c.id), 0);
-
-    summaryNode = (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-        <div className="p-3 bg-red-50 border border-red-100 rounded-lg">
-          <p className="text-[9px] text-red-800 font-bold uppercase tracking-wider">Total Receivables Outstanding (Credit Book)</p>
-          <p className="font-mono text-sm font-extrabold text-red-700 mt-1">Rs. {Math.round(totalOutstanding).toLocaleString()}</p>
-        </div>
-        <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-between">
-          <span className="text-[10px] font-semibold text-slate-500">Total Accounts Listed:</span>
-          <span className="font-mono font-bold text-slate-800 text-sm">{filteredCust.length} Active Profiles</span>
-        </div>
-      </div>
-    );
-
-    reportHeaders = ['ID Folder', 'Customer Name', 'Phone Contact', 'Delivery Address', 'Outstanding Receivable Balance'];
-    reportRows = filteredCust.map((c) => [
-      c.id.toUpperCase(),
-      c.name,
-      c.phone,
-      c.address,
-      'Rs. ' + Math.round(getCustomerOutstandingBalance(c.id)).toLocaleString()
-    ]);
-  } else if (activeReport === 'inventory') {
-    reportTitle = 'Procurement &amp; Material Consumption Ledger';
-    const filteredTxs = txs.filter((t) => isWithinRange(t.date) && t.notes.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const procureTotal = filteredTxs.filter(t => t.type === 'in').reduce((sum, t) => sum + t.cost, 0);
-    const consumedCount = filteredTxs.filter(t => t.type === 'out').length;
-
-    summaryNode = (
-      <div className="grid grid-cols-2 gap-4 mb-5">
-        <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg">
-          <p className="text-[9px] text-indigo-800 font-bold uppercase tracking-wider">Raw Material Procurement Cost</p>
-          <p className="font-mono text-sm font-extrabold text-indigo-700 mt-1">Rs. {Math.round(procureTotal).toLocaleString()}</p>
-        </div>
-        <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-          <p className="text-[9px] text-slate-400 font-bold uppercase">Automated Deductions Run</p>
-          <p className="font-mono text-sm font-extrabold text-slate-700 mt-1">{consumedCount} transaction logs</p>
-        </div>
-      </div>
-    );
-
-    reportHeaders = ['Transaction Date', 'Adjustment', 'Material Volume', 'Supplier Procurement Cost', 'Operational Detail Log'];
-    reportRows = filteredTxs.reverse().map((t) => [
-      t.date,
-      t.type.toUpperCase() === 'IN' ? 'STOCK-IN' : 'STOCK-OUT',
-      `${t.quantity.toLocaleString()} ${t.unit || 'pcs'}`,
-      t.cost > 0 ? 'Rs. ' + t.cost.toLocaleString() : '—',
-      t.notes
-    ]);
-  }
-
-  const handlePrintReport = () => {
-    window.print();
-  };
+  const scopeOptions: { value: ReportScope; label: string }[] = [
+    { value: 'daily', label: 'Daily' },
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'custom', label: 'Custom' },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Date filter bar - Hidden when printing */}
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-50 px-4 py-3 bg-emerald-600 text-white rounded-xl border border-emerald-500 flex items-center gap-2 text-xs font-semibold shadow-lg">
+          <CheckCircle size={16} />
+          <span>{toast}</span>
+        </div>
+      )}
+
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4 no-print">
-        <h3 className="font-display font-black text-slate-800 text-sm">ERP Reporting Center</h3>
-        <p className="text-[11px] text-slate-400 font-medium">Generate custom dates-stamped audited financial logs and production registers</p>
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+          <div>
+            <h3 className="font-display font-black text-slate-800 text-sm">ERP Reporting Center</h3>
+            <p className="text-[11px] text-slate-400 font-medium">One printable report with profit, expenses, waste, production status, receivables and sales.</p>
+          </div>
+          <button
+            onClick={() => {
+              handlePrintReport();
+              triggerToast('Printable report generated.');
+            }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+          >
+            <Printer size={14} /> Print Full Report
+          </button>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2 text-xs">
           <div>
@@ -278,7 +183,6 @@ export default function ReportsPage() {
               className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono font-semibold"
             />
           </div>
-
           <div>
             <label className="block text-slate-500 font-semibold mb-1">End Date</label>
             <input
@@ -288,65 +192,36 @@ export default function ReportsPage() {
               className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono font-semibold"
             />
           </div>
-
           <div>
-            <label className="block text-slate-500 font-semibold mb-1">Description Keyword Search</label>
-            <input
-              type="text"
-              placeholder="Filter by customer, memo..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+            <label className="block text-slate-500 font-semibold mb-1">Report Scope</label>
+            <select
+              value={reportScope}
+              onChange={(e) => setReportScope(e.target.value as ReportScope)}
               className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
-            />
-          </div>
-
-          <div className="flex items-end">
-            <button
-              onClick={handlePrintReport}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer"
             >
-              <Printer size={14} /> Print This Report (PDF)
-            </button>
+              {scopeOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </div>
-        </div>
-
-        {/* Tab Selection */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-slate-50">
-          {[
-            { id: 'sales', label: 'Sales & Revenue', icon: FileBarChart2 },
-            { id: 'expenses', label: 'Expenses ledger', icon: Receipt },
-            { id: 'waste', label: 'Waste & Defects', icon: AlertTriangle },
-            { id: 'production', label: 'Production runs', icon: Droplets },
-            { id: 'customers', label: 'Accounts Receivables', icon: Landmark },
-            { id: 'inventory', label: 'Material Ledger', icon: Layers },
-          ].map((tab) => {
-            const IconComp = tab.icon;
-            const isSel = activeReport === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveReport(tab.id);
-                  setSearchQuery('');
-                }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 border transition-all cursor-pointer ${
-                  isSel
-                    ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm'
-                    : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-100'
-                }`}
-              >
-                <IconComp size={12} />
-                {tab.label}
-              </button>
-            );
-          })}
+          <div>
+            <label className="block text-slate-500 font-semibold mb-1">Search</label>
+            <div className="relative">
+              <Search className="absolute inset-y-0 left-3 my-auto text-slate-400" size={14} />
+              <input
+                type="text"
+                placeholder="Search entries"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-4 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Compiled Report Paper Sheet */}
       <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm print-report-wrapper font-sans text-slate-700">
-        {/* Banner only visible during print/PDF generation */}
-        <div className="hidden print-header-logo flex justify-between items-start border-b-2 border-slate-800 pb-4 mb-6">
+        <div className="hidden print:flex print-header-logo justify-between items-start border-b-2 border-slate-800 pb-4 mb-6">
           <div>
             <h1 className="font-display font-black text-slate-900 text-base uppercase tracking-tight">Prime Plate Factory ERP</h1>
             <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Sargodha Road, Gujranwala, Pakistan</p>
@@ -357,65 +232,199 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Title area */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100">
           <div>
-            <h2 className="font-display font-black text-slate-800 text-base uppercase tracking-wider">{reportTitle}</h2>
+            <h2 className="font-display font-black text-slate-800 text-base uppercase tracking-wider">Factory Executive Report</h2>
             <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
-              Statement Range: <span className="font-mono text-slate-700">{startDate}</span> to <span className="font-mono text-slate-700">{endDate}</span>
+              {reportRange.label}: <span className="font-mono text-slate-700">{reportRange.start}</span> to <span className="font-mono text-slate-700">{reportRange.end}</span>
             </p>
           </div>
           <span className="text-[10px] font-bold text-slate-400 uppercase font-mono px-3 py-1 bg-slate-50 rounded-lg border border-slate-100 shrink-0">
-            Export Code: ERP-{activeReport.toUpperCase()}
+            Export Code: ERP-FULL
           </span>
         </div>
 
-        {/* Dynamic statistical summary blocks */}
-        {summaryNode}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+          <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+            <p className="text-[9px] text-emerald-800 font-bold uppercase tracking-wider">Net Profit</p>
+            <p className="font-mono text-sm font-extrabold text-emerald-700 mt-1">{formatCurrency(profit)}</p>
+          </div>
+          <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg">
+            <p className="text-[9px] text-rose-800 font-bold uppercase tracking-wider">Total Expenses</p>
+            <p className="font-mono text-sm font-extrabold text-rose-700 mt-1">{formatCurrency(totalExpenses)}</p>
+          </div>
+          <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
+            <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wider">Waste & Defects</p>
+            <p className="font-mono text-sm font-extrabold text-amber-700 mt-1">{totalWasteQty.toLocaleString()} pcs</p>
+          </div>
+          <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+            <p className="text-[9px] text-blue-800 font-bold uppercase tracking-wider">Remaining Wet Plates</p>
+            <p className="font-mono text-sm font-extrabold text-blue-700 mt-1">{remainingWet.toLocaleString()} pcs</p>
+          </div>
+          <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
+            <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wider">Remaining Dry Plates</p>
+            <p className="font-mono text-sm font-extrabold text-amber-700 mt-1">{remainingDry.toLocaleString()} pcs</p>
+          </div>
+          <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+            <p className="text-[9px] text-emerald-800 font-bold uppercase tracking-wider">Remaining Final Products</p>
+            <p className="font-mono text-sm font-extrabold text-emerald-700 mt-1">{remainingFinal.toLocaleString()} pcs</p>
+          </div>
+        </div>
 
-        {/* Main report tabular list */}
-        <div className="overflow-x-auto pt-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <FileBarChart2 size={16} className="text-indigo-600" />
+              <h3 className="font-display font-bold text-slate-800 text-sm">Sales & Revenue</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Units Sold</p>
+                <p className="font-mono font-bold text-slate-800 mt-1">{salesQty.toLocaleString()} pcs</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Gross Sales</p>
+                <p className="font-mono font-bold text-slate-800 mt-1">{formatCurrency(salesGross)}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Discounts</p>
+                <p className="font-mono font-bold text-red-600 mt-1">{formatCurrency(discounts)}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Net Revenue</p>
+                <p className="font-mono font-bold text-emerald-700 mt-1">{formatCurrency(netRevenue)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Receipt size={16} className="text-rose-600" />
+              <h3 className="font-display font-bold text-slate-800 text-sm">Expense Ledger</h3>
+            </div>
+            <div className="space-y-2 text-xs">
+              {Object.entries(expenseByCategory).length > 0 ? Object.entries(expenseByCategory).map(([category, amount]) => (
+                <div key={category} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                  <span className="text-slate-600">{category}</span>
+                  <span className="font-mono font-bold text-slate-800">{formatCurrency(amount)}</span>
+                </div>
+              )) : <p className="text-slate-400">No expenses found in the selected range.</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle size={16} className="text-amber-600" />
+              <h3 className="font-display font-bold text-slate-800 text-sm">Waste & Defects</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Total Waste</p>
+                <p className="font-mono font-bold text-slate-800 mt-1">{totalWasteQty.toLocaleString()} pcs</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Wet Stage Loss</p>
+                <p className="font-mono font-bold text-slate-800 mt-1">{wetLoss.toLocaleString()} pcs</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Dry Stage Loss</p>
+                <p className="font-mono font-bold text-slate-800 mt-1">{dryLoss.toLocaleString()} pcs</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Droplets size={16} className="text-blue-600" />
+              <h3 className="font-display font-bold text-slate-800 text-sm">Production Runs</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-xs">
+              <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Wet</p>
+                <p className="font-mono font-bold text-slate-800 mt-1">{totalWetProduced.toLocaleString()} pcs</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Dry</p>
+                <p className="font-mono font-bold text-slate-800 mt-1">{totalDryProduced.toLocaleString()} pcs</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Final</p>
+                <p className="font-mono font-bold text-slate-800 mt-1">{totalFinalProduced.toLocaleString()} pcs</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Landmark size={16} className="text-red-600" />
+              <h3 className="font-display font-bold text-slate-800 text-sm">Accounts Receivables</h3>
+            </div>
+            <div className="space-y-2 text-xs">
+              {filteredCustomers.length > 0 ? filteredCustomers.map((customer) => (
+                <div key={customer.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                  <span className="text-slate-600">{customer.name}</span>
+                  <span className="font-mono font-bold text-slate-800">{formatCurrency(getCustomerOutstandingBalance(customer.id))}</span>
+                </div>
+              )) : <p className="text-slate-400">No customer balances available.</p>}
+              <div className="flex items-center justify-between rounded-lg border border-red-100 bg-red-50 px-3 py-2 mt-2">
+                <span className="font-semibold text-red-700">Total Receivables</span>
+                <span className="font-mono font-bold text-red-700">{formatCurrency(totalReceivables)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Layers size={16} className="text-violet-600" />
+              <h3 className="font-display font-bold text-slate-800 text-sm">Material Ledger</h3>
+            </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <span className="text-slate-600">Procurement Cost</span>
+                <span className="font-mono font-bold text-slate-800">{formatCurrency(procurementCost)}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <span className="text-slate-600">Stock Entries</span>
+                <span className="font-mono font-bold text-slate-800">{filteredTxs.filter((t) => t.type === 'in').length}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <span className="text-slate-600">Material Deductions</span>
+                <span className="font-mono font-bold text-slate-800">{filteredTxs.filter((t) => t.type === 'out').length}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto border-t border-slate-100 pt-4">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                {reportHeaders.map((head, index) => (
-                  <th key={index} className={`py-3 px-2 ${index > 2 && index < 7 && activeReport === 'sales' ? 'text-right' : ''}`}>
-                    {head}
-                  </th>
-                ))}
+                <th className="py-3 px-2">Date</th>
+                <th className="py-3 px-2">Category</th>
+                <th className="py-3 px-2 text-right">Value</th>
+                <th className="py-3 px-2">Notes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {reportRows.length > 0 ? (
-                reportRows.map((row, rIdx) => (
-                  <tr key={rIdx} className="hover:bg-slate-50/20">
-                    {row.map((cell: any, cIdx: number) => (
-                      <td
-                        key={cIdx}
-                        className={`py-3 px-2 ${
-                          cIdx === 0 && (activeReport === 'sales' || activeReport === 'customers')
-                            ? 'font-mono font-bold text-indigo-600'
-                            : ''
-                        } ${activeReport === 'sales' && cIdx > 3 ? 'text-right font-mono' : ''}`}
-                      >
-                        {cell}
-                      </td>
-                    ))}
+              {[...filteredSales.map((s) => ({ date: s.date, category: `Sale • ${s.invoiceNumber}`, value: s.grandTotal, notes: `${s.customerName} • ${s.quantity} pcs` })),
+                ...filteredExpenses.map((e) => ({ date: e.date, category: `Expense • ${e.category}`, value: e.amount, notes: e.description })),
+                ...filteredWaste.map((w) => ({ date: w.date, category: `Waste • ${w.source}`, value: w.quantity, notes: w.notes }))].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20).map((row, index) => (
+                  <tr key={`${row.category}-${index}`} className="hover:bg-slate-50/20">
+                    <td className="py-3 px-2 font-mono">{row.date}</td>
+                    <td className="py-3 px-2">{row.category}</td>
+                    <td className="py-3 px-2 text-right font-mono">{typeof row.value === 'number' && row.category.includes('Expense') ? formatCurrency(row.value) : typeof row.value === 'number' && row.category.includes('Sale') ? formatCurrency(row.value) : `${row.value.toLocaleString()} pcs`}</td>
+                    <td className="py-3 px-2">{row.notes}</td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={reportHeaders.length} className="py-12 text-center text-slate-400 font-semibold">
-                    No matching ledger entries found for selected date-stamp query range.
-                  </td>
-                </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
 
-        {/* Footer print stamp */}
-        <div className="hidden print-footer-log pt-10 border-t border-slate-100 mt-12 flex justify-between items-center text-[9px] text-slate-400">
+        <div className="hidden print:flex print-footer-log pt-10 border-t border-slate-100 mt-12 justify-between items-center text-[9px] text-slate-400">
           <span>Printed from Prime Plate ERP System securely.</span>
           <span>Authorized signature: ______________________</span>
         </div>

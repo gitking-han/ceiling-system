@@ -15,6 +15,7 @@ import {
   SupplierLedgerEntry,
   Sale,
   Payment,
+  PanniType,
 } from '../types';
 
 // Helper to get today's date in YYYY-MM-DD format
@@ -44,6 +45,7 @@ export const KEYS = {
   SUPPLIER_LEDGER: 'factory_erp_supplier_ledger',
   SALES: 'factory_erp_sales',
   PAYMENTS: 'factory_erp_payments',
+  PANNI_TYPES: 'factory_erp_panni_types',
 };
 
 function getStorage(): Storage | null {
@@ -174,6 +176,53 @@ export async function refreshSuppliersFromApi(): Promise<Supplier[]> {
   } catch (error) {
     console.error('Failed to refresh suppliers from API:', error);
     return getData<Supplier>(KEYS.SUPPLIERS);
+  }
+}
+
+export async function refreshPanniTypesFromApi(): Promise<PanniType[]> {
+  if (typeof window === 'undefined') {
+    return getData<PanniType>(KEYS.PANNI_TYPES);
+  }
+
+  try {
+    const response = await fetch('/api/panni-types', { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error('Unable to load panni types from the API');
+    }
+
+    const payload = await response.json();
+    const panniTypes = Array.isArray(payload) ? payload : [];
+    const storage = getStorage();
+    if (storage) {
+      storage.setItem(KEYS.PANNI_TYPES, JSON.stringify(panniTypes));
+    }
+    return panniTypes;
+  } catch (error) {
+    console.error('Failed to refresh panni types from API:', error);
+    return getData<PanniType>(KEYS.PANNI_TYPES);
+  }
+}
+
+export async function syncPanniTypesToApi(panniTypes: PanniType[]): Promise<PanniType[]> {
+  if (typeof window === 'undefined') {
+    return panniTypes;
+  }
+
+  try {
+    const response = await fetch('/api/panni-types', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(panniTypes),
+    });
+
+    if (!response.ok) {
+      throw new Error('Unable to sync panni types to the API');
+    }
+
+    return panniTypes;
+  } catch (error) {
+    console.error('Failed to sync panni types to API:', error);
+    return panniTypes;
   }
 }
 
@@ -408,6 +457,13 @@ export const db = {
 
   getPayments: () => getData<Payment>(KEYS.PAYMENTS),
   savePayments: (data: Payment[]) => saveData<Payment>(KEYS.PAYMENTS, data),
+
+  getPanniTypes: () => getData<PanniType>(KEYS.PANNI_TYPES),
+  savePanniTypes: (data: PanniType[]) => {
+    saveData<PanniType>(KEYS.PANNI_TYPES, data);
+    void syncPanniTypesToApi(data);
+    return data;
+  },
 };
 
 // HELPER BUSINESS LOGICS

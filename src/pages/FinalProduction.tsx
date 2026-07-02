@@ -10,25 +10,16 @@ export default function FinalProductionPage() {
   const latestDryProduction = [...db.getDryProduction()]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
-  const panniMaterials = materials.filter((m) => m.name.toLowerCase().includes('panni'));
-  const panniTypeOptions = Array.from(new Set(panniMaterials.map((m) => (m.panniType || 'Standard Panni').trim())));
-
   // Form states
   const [date, setDate] = useState(getTodayStr());
   const [dryReceived, setDryReceived] = useState<number>(latestDryProduction?.dryPlatesProduced ?? 1000);
   const [finalProduced, setFinalProduced] = useState<number>(950);
-  const [panniType, setPanniType] = useState(panniTypeOptions[0] || 'Standard Panni');
 
   useEffect(() => {
     if (latestDryProduction) {
       setDryReceived(latestDryProduction.dryPlatesProduced);
     }
   }, [latestDryProduction?.id]);
-
-  useEffect(() => {
-    if (panniTypeOptions.length === 0) return;
-    setPanniType((current) => panniTypeOptions.includes(current) ? current : panniTypeOptions[0]);
-  }, [panniTypeOptions.join('|')]);
 
   const [notes, setNotes] = useState('');
 
@@ -44,16 +35,8 @@ export default function FinalProductionPage() {
   };
 
   // Live Formula Consumption Preview Generator
-  const getSelectedPanniMaterial = () => {
-    return materials.find((m) => m.name.toLowerCase().includes('panni') && (m.panniType || 'Standard Panni').toLowerCase() === panniType.toLowerCase())
-      || materials.find((m) => m.name.toLowerCase().includes('panni'));
-  };
-
   const getFormulaMaterial = (form: Formula) => {
     const normalizedName = form.materialName.toLowerCase();
-    if (normalizedName === 'panni') {
-      return getSelectedPanniMaterial();
-    }
     return materials.find((m) => m.name.toLowerCase() === normalizedName);
   };
 
@@ -104,6 +87,15 @@ export default function FinalProductionPage() {
       return;
     }
 
+    // Check if we have sufficient stock for all materials
+    const previewList = getConsumptionPreview(finalProduced);
+    const insufficientMaterials = previewList.filter((p) => !p.hasEnough);
+    if (insufficientMaterials.length > 0) {
+      const materialsList = insufficientMaterials.map((m) => `${m.materialName} (need ${m.calculatedAmount.toLocaleString()} ${m.unit}, have ${m.availableStock.toLocaleString()} ${m.unit})`).join(', ');
+      setError(`⚠️ Insufficient stock! Required operation needs more stock: ${materialsList}`);
+      return;
+    }
+
     // Check if we have critically low materials or if user wants to bypass (we deduct anyway but let's notify)
     const activeId = 'final_' + Math.random().toString(36).substr(2, 9);
 
@@ -120,7 +112,6 @@ export default function FinalProductionPage() {
       dryPlatesReceived: dryReceived,
       finalPlatesProduced: finalProduced,
       notes: notes.trim(),
-      panniType: panniType.trim() || undefined,
       createdAt: getTodayStr(),
       consumptions: finalConsumptions,
     };
@@ -129,9 +120,6 @@ export default function FinalProductionPage() {
     materials.forEach((mat) => {
       const consumption = finalConsumptions.find((c) => c.materialName.toLowerCase() === mat.name.toLowerCase());
       if (!consumption || mat.name.toLowerCase().includes('plaster')) return;
-      if (mat.name.toLowerCase().includes('panni') && (mat.panniType || 'Standard Panni').toLowerCase() !== panniType.toLowerCase()) {
-        return;
-      }
 
       // Log transaction of type 'out'
       adjustMaterialStock(
@@ -168,7 +156,6 @@ export default function FinalProductionPage() {
     // Reset Form
     setDryReceived(1000);
     setFinalProduced(950);
-    setPanniType('Standard Panni');
     setNotes('');
     triggerToast(`Final production of ${finalProduced} plates committed. Materials deducted from stock.`);
   };
@@ -210,6 +197,20 @@ export default function FinalProductionPage() {
 
   return (
     <div className="space-y-6">
+      {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Final Plates Packed</p>
+          <p className="mt-2 text-xl font-display font-bold text-slate-900">{records.reduce((sum, item) => sum + item.finalPlatesProduced, 0).toLocaleString()} pcs</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Dry Plates Received</p>
+          <p className="mt-2 text-xl font-display font-bold text-slate-900">{records.reduce((sum, item) => sum + item.dryPlatesReceived, 0).toLocaleString()} pcs</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Batches Logged</p>
+          <p className="mt-2 text-xl font-display font-bold text-slate-900">{records.length}</p>
+        </div>
+      </div> */}
       {/* Toast Alert */}
       {toast && (
         <div className="fixed bottom-5 right-5 z-50 px-4 py-3 bg-indigo-600 text-white rounded-xl border border-indigo-500 flex items-center gap-2 text-xs font-semibold shadow-lg">
@@ -282,26 +283,6 @@ export default function FinalProductionPage() {
                 placeholder="Shift summary, quality check, loader names..."
                 className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
               />
-            </div>
-
-            <div>
-              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Panni Type</label>
-              <select
-                value={panniType}
-                onChange={(e) => setPanniType(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
-              >
-                {panniTypeOptions.length > 0 ? (
-                  panniTypeOptions.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))
-                ) : (
-                  ['Standard Panni', 'Premium Panni', 'Heavy Panni', 'Soft Panni'].map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))
-                )}
-              </select>
-              <p className="text-[10px] text-slate-400 mt-1 font-medium">This selection is stored with the batch and uses the matching inventory Panni variant for stock deduction.</p>
             </div>
 
             <button
@@ -428,11 +409,6 @@ export default function FinalProductionPage() {
               <p className="text-[10px] text-slate-500 mb-3 font-semibold uppercase tracking-wider">
                 Total Output: <span className="text-slate-800 font-bold font-mono">{selectedRecord.finalPlatesProduced.toLocaleString()} plates</span> | Date: <span className="text-slate-800 font-bold font-mono">{selectedRecord.date}</span>
               </p>
-              {selectedRecord.panniType && (
-                <p className="text-[10px] text-indigo-600 mb-3 font-semibold uppercase tracking-wider">
-                  Panni Type: <span className="text-slate-800 font-bold font-mono">{selectedRecord.panniType}</span>
-                </p>
-              )}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {selectedRecord.consumptions?.map((cons, i) => (
                   <div key={i} className="p-2.5 bg-white border border-slate-100 rounded-lg">

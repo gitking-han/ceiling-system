@@ -17,6 +17,7 @@ import { Supplier } from '../../src/models/Supplier';
 import { SupplierLedgerEntry } from '../../src/models/SupplierLedgerEntry';
 import { Sale } from '../../src/models/Sale';
 import { Payment } from '../../src/models/Payment';
+import { PanniType } from '../../src/models/PanniType';
 
 const KEYS = {
   USER: 'factory_erp_user',
@@ -35,6 +36,7 @@ const KEYS = {
   SUPPLIER_LEDGER: 'factory_erp_supplier_ledger',
   SALES: 'factory_erp_sales',
   PAYMENTS: 'factory_erp_payments',
+  PANNI_TYPES: 'factory_erp_panni_types',
 };
 
 const MODEL_MAP: Record<string, any> = {
@@ -54,6 +56,7 @@ const MODEL_MAP: Record<string, any> = {
   [KEYS.SUPPLIER_LEDGER]: SupplierLedgerEntry,
   [KEYS.SALES]: Sale,
   [KEYS.PAYMENTS]: Payment,
+  [KEYS.PANNI_TYPES]: PanniType,
 };
 
 function sanitizeRawPayload(rawPayload: any) {

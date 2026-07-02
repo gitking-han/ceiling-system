@@ -59,6 +59,10 @@ export default function Dashboard({ setCurrentTab, onViewInvoice }: DashboardPro
     .filter((w) => w.date === todayStr)
     .reduce((sum, item) => sum + item.quantity, 0);
 
+  const remainingWetStock = Math.max(0, wetProd.reduce((sum, item) => sum + item.wetPlatesProduced, 0) - dryProd.reduce((sum, item) => sum + item.wetPlatesReceived, 0));
+  const remainingDryStock = Math.max(0, dryProd.reduce((sum, item) => sum + item.dryPlatesProduced, 0) - finalProd.reduce((sum, item) => sum + item.dryPlatesReceived, 0));
+  const remainingFinalStock = Math.max(0, finalProd.reduce((sum, item) => sum + item.finalPlatesProduced, 0) - sales.reduce((sum, item) => sum + item.quantity, 0));
+
   // Profit / Loss Summary: (All-time or Today? Let's do today first, and show cumulative monthly summary too!)
   const netProfitToday = totalSalesToday - totalExpensesToday;
 
@@ -340,6 +344,18 @@ export default function Dashboard({ setCurrentTab, onViewInvoice }: DashboardPro
               </>
             )}
           </p>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Remaining Stock</span>
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center">#</div>
+          </div>
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between"><span className="text-slate-500">Wet</span><span className="font-mono font-bold text-slate-800">{remainingWetStock.toLocaleString()} pcs</span></div>
+            <div className="flex items-center justify-between"><span className="text-slate-500">Dry</span><span className="font-mono font-bold text-slate-800">{remainingDryStock.toLocaleString()} pcs</span></div>
+            <div className="flex items-center justify-between"><span className="text-slate-500">Final</span><span className="font-mono font-bold text-slate-800">{remainingFinalStock.toLocaleString()} pcs</span></div>
+          </div>
         </div>
       </div>
 
