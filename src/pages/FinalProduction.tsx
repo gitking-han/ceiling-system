@@ -64,6 +64,9 @@ export default function FinalProductionPage() {
         unit: unitUsed,
         availableStock: mat ? mat.quantity : 0,
         hasEnough: mat ? mat.quantity >= amountNeeded : false,
+        // Expose formula source per plate for UI preview
+        formulaAmountPerPlate: form.amount,
+        formulaUnitPerPlate: form.unit,
       };
     });
   };
@@ -305,6 +308,12 @@ export default function FinalProductionPage() {
                   <div>
                     <p className="font-bold text-slate-700">{prev.materialName}</p>
                     <p className="text-[9px] text-slate-400 font-medium">Available: {prev.availableStock.toLocaleString()} {prev.unit}</p>
+                    <p className="text-[10px] text-slate-600 mt-1 font-semibold">
+                      Estimated deduction: {prev.calculatedAmount.toLocaleString()} {prev.unit}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Formula source: {prev.materialName} • {prev.formulaAmountPerPlate} {prev.formulaUnitPerPlate} / plate
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="font-mono font-bold text-slate-800">
@@ -410,14 +419,22 @@ export default function FinalProductionPage() {
                 Total Output: <span className="text-slate-800 font-bold font-mono">{selectedRecord.finalPlatesProduced.toLocaleString()} plates</span> | Date: <span className="text-slate-800 font-bold font-mono">{selectedRecord.date}</span>
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {selectedRecord.consumptions?.map((cons, i) => (
-                  <div key={i} className="p-2.5 bg-white border border-slate-100 rounded-lg">
-                    <p className="text-[10px] text-slate-400 font-semibold truncate">{cons.materialName}</p>
-                    <p className="text-xs font-bold text-slate-800 font-mono mt-0.5">
-                      {cons.calculatedAmount.toLocaleString()} {cons.unit}
-                    </p>
-                  </div>
-                ))}
+                {selectedRecord.consumptions?.map((cons, i) => {
+                  const matchingFormula = formulas.find((f) => f.materialName.toLowerCase() === cons.materialName.toLowerCase());
+                  return (
+                    <div key={i} className="p-2.5 bg-white border border-slate-100 rounded-lg">
+                      <p className="text-[10px] text-slate-400 font-semibold truncate">{cons.materialName}</p>
+                      <p className="text-xs font-bold text-slate-800 font-mono mt-0.5">
+                        {cons.calculatedAmount.toLocaleString()} {cons.unit}
+                      </p>
+                      {matchingFormula && (
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          Formula: {matchingFormula.amount} {matchingFormula.unit}/plate
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
