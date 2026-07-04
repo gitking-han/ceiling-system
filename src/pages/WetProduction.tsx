@@ -217,7 +217,7 @@ export default function WetProductionPage() {
             </div>
 
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-100/60 text-[11px] text-slate-600">
-              <p className="font-semibold uppercase tracking-wider text-[10px] text-slate-500 mb-1">Plaster deduction preview</p>
+              <p className-="font-semibold uppercase tracking-wider text-[10px] text-slate-500 mb-1">Plaster deduction preview</p>
               {plasterPreview ? (
                 <>
                   <p className="font-semibold text-slate-700">

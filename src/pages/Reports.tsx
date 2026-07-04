@@ -41,24 +41,6 @@ function endOfWeek(dateString: string) {
   return formatDateInput(date);
 }
 
-function startOfLastWeek(dateString: string) {
-  const [year, month, day] = dateString.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-  const start = startOfWeek(dateString);
-  const [startYear, startMonth, startDay] = start.split('-').map(Number);
-  const startDate = new Date(startYear, startMonth - 1, startDay);
-  startDate.setDate(startDate.getDate() - 7);
-  return formatDateInput(startDate);
-}
-
-function endOfLastWeek(dateString: string) {
-  const start = startOfLastWeek(dateString);
-  const [year, month, day] = start.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-  date.setDate(date.getDate() + 6);
-  return formatDateInput(date);
-}
-
 function startOfMonth(dateString: string) {
   return dateString.substring(0, 8) + '01';
 }
@@ -68,20 +50,6 @@ function endOfMonth(dateString: string) {
   const nextMonth = new Date(year, month, 1);
   const lastDay = new Date(nextMonth.getTime() - 24 * 60 * 60 * 1000).getDate();
   return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-}
-
-function startOfLastMonth(dateString: string) {
-  const [year, month] = dateString.split('-').map(Number);
-  const date = new Date(year, month - 1, 1);
-  date.setMonth(date.getMonth() - 1);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
-}
-
-function endOfLastMonth(dateString: string) {
-  const [year, month] = dateString.split('-').map(Number);
-  const date = new Date(year, month - 1, 1);
-  date.setDate(0);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 export default function ReportsPage() {
@@ -109,10 +77,10 @@ export default function ReportsPage() {
       return { start: today, end: today, label: 'Daily Report' };
     }
     if (reportScope === 'weekly') {
-      return { start: startOfLastWeek(today), end: endOfLastWeek(today), label: 'Last Week Report' };
+      return { start: startOfWeek(today), end: today, label: 'Current Week Report' };
     }
     if (reportScope === 'monthly') {
-      return { start: startOfLastMonth(today), end: endOfLastMonth(today), label: 'Last Month Report' };
+      return { start: startOfMonth(today), end: today, label: 'Current Month Report' };
     }
     return { start: startDate, end: endDate, label: 'Custom Range Report' };
   }, [reportScope, startDate, endDate, today]);
