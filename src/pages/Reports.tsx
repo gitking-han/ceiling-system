@@ -20,13 +20,17 @@ function formatCurrency(value: number) {
   return `Rs. ${Math.round(value).toLocaleString()}`;
 }
 
+function formatDateInput(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function startOfWeek(dateString: string) {
   const [year, month, day] = dateString.split('-').map(Number);
   const date = new Date(year, month - 1, day);
   const dayOfWeek = date.getDay();
   const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   date.setDate(date.getDate() + diff);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return formatDateInput(date);
 }
 
 function endOfWeek(dateString: string) {
@@ -34,7 +38,25 @@ function endOfWeek(dateString: string) {
   const [year, month, day] = start.split('-').map(Number);
   const date = new Date(year, month - 1, day);
   date.setDate(date.getDate() + 6);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return formatDateInput(date);
+}
+
+function startOfLastWeek(dateString: string) {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const start = startOfWeek(dateString);
+  const [startYear, startMonth, startDay] = start.split('-').map(Number);
+  const startDate = new Date(startYear, startMonth - 1, startDay);
+  startDate.setDate(startDate.getDate() - 7);
+  return formatDateInput(startDate);
+}
+
+function endOfLastWeek(dateString: string) {
+  const start = startOfLastWeek(dateString);
+  const [year, month, day] = start.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + 6);
+  return formatDateInput(date);
 }
 
 function startOfMonth(dateString: string) {
@@ -46,6 +68,20 @@ function endOfMonth(dateString: string) {
   const nextMonth = new Date(year, month, 1);
   const lastDay = new Date(nextMonth.getTime() - 24 * 60 * 60 * 1000).getDate();
   return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+}
+
+function startOfLastMonth(dateString: string) {
+  const [year, month] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, 1);
+  date.setMonth(date.getMonth() - 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function endOfLastMonth(dateString: string) {
+  const [year, month] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, 1);
+  date.setDate(0);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 export default function ReportsPage() {
@@ -69,15 +105,14 @@ export default function ReportsPage() {
   const materials = db.getMaterials();
 
   const reportRange = useMemo(() => {
-    const anchor = startDate || endDate || today;
     if (reportScope === 'daily') {
-      return { start: anchor, end: anchor, label: 'Daily Report' };
+      return { start: today, end: today, label: 'Daily Report' };
     }
     if (reportScope === 'weekly') {
-      return { start: startOfWeek(anchor), end: endOfWeek(anchor), label: 'Weekly Report' };
+      return { start: startOfLastWeek(today), end: endOfLastWeek(today), label: 'Last Week Report' };
     }
     if (reportScope === 'monthly') {
-      return { start: startOfMonth(anchor), end: endOfMonth(anchor), label: 'Monthly Report' };
+      return { start: startOfLastMonth(today), end: endOfLastMonth(today), label: 'Last Month Report' };
     }
     return { start: startDate, end: endDate, label: 'Custom Range Report' };
   }, [reportScope, startDate, endDate, today]);
@@ -180,7 +215,8 @@ export default function ReportsPage() {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono font-semibold"
+              disabled={reportScope !== 'custom'}
+              className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
             />
           </div>
           <div>
@@ -189,7 +225,8 @@ export default function ReportsPage() {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono font-semibold"
+              disabled={reportScope !== 'custom'}
+              className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
             />
           </div>
           <div>
