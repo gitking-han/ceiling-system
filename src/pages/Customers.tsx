@@ -209,6 +209,7 @@ export default function CustomersPage() {
         .filter((l) => l.customerId === selectedCustomerId)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     : [];
+  const customerOutstanding = selectedCustomer ? getCustomerOutstandingBalance(selectedCustomer.id) : 0;
 
   return (
     <div className="space-y-6">
@@ -287,11 +288,14 @@ export default function CustomersPage() {
                       </div>
                     </div>
                     <p className="text-slate-400 font-medium text-[10px]">{cust.phone} • {cust.address}</p>
-                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[10px] text-slate-400 font-semibold uppercase">Balance Due:</span>
-                      <span className={`font-mono font-bold ${outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                        Rs. {Math.round(outstanding).toLocaleString()}
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                        {outstanding > 0 ? 'Customer owes you' : 'Settled'}
                       </span>
+                      <div className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-semibold ${outstanding > 0 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                        {outstanding > 0 ? <ArrowDownRight size={12} /> : <CheckCircle size={12} />}
+                        <span className="font-mono">Rs. {Math.round(outstanding).toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -318,10 +322,15 @@ export default function CustomersPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase">Pending Outstanding</p>
-                    <p className="font-mono font-extrabold text-base text-red-600 mt-0.5">
-                      Rs. {Math.round(getCustomerOutstandingBalance(selectedCustomer.id)).toLocaleString()}
+                  <div className={`text-right rounded-xl border px-3 py-2 ${customerOutstanding > 0 ? 'border-rose-200 bg-rose-50' : 'border-emerald-200 bg-emerald-50'}`}>
+                    <p className={`text-[10px] font-semibold uppercase tracking-wide ${customerOutstanding > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {customerOutstanding > 0 ? 'Customer still owes you' : 'Nothing pending'}
+                    </p>
+                    <p className={`font-mono font-extrabold text-base mt-0.5 ${customerOutstanding > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                      Rs. {Math.round(customerOutstanding).toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {customerOutstanding > 0 ? 'Record payment when the customer settles their balance.' : 'This customer account is fully settled.'}
                     </p>
                   </div>
                   <button
@@ -357,34 +366,42 @@ export default function CustomersPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-600">
                       {selectedLedgerEntries.length > 0 ? (
-                        selectedLedgerEntries.map((ent) => (
-                          <tr key={ent.id} className="hover:bg-slate-50/40">
-                            <td className="py-2.5 px-2 font-mono text-slate-400">{ent.date}</td>
-                            <td className="py-2.5 px-2">
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border capitalize ${
-                                ent.type === 'Opening Balance'
-                                  ? 'bg-slate-100 text-slate-700 border-slate-200'
-                                  : ent.type === 'Sale'
-                                  ? 'bg-rose-50 text-rose-700 border-rose-100'
-                                  : 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                              }`}>
-                                {ent.type}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-2 text-right font-mono font-semibold text-rose-600">
-                              {ent.debit > 0 ? `Rs. ${ent.debit.toLocaleString()}` : '—'}
-                            </td>
-                            <td className="py-2.5 px-2 text-right font-mono font-semibold text-emerald-600">
-                              {ent.credit > 0 ? `Rs. ${ent.credit.toLocaleString()}` : '—'}
-                            </td>
-                            <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-800">
-                              Rs. {Math.round(ent.balance).toLocaleString()}
-                            </td>
-                            <td className="py-2.5 px-2 text-[11px] text-slate-400 max-w-[160px] truncate" title={ent.description}>
-                              {ent.description}
-                            </td>
-                          </tr>
-                        ))
+                        selectedLedgerEntries.map((ent) => {
+                          const increasesBalance = ent.debit > 0 || ent.type === 'Opening Balance';
+                          return (
+                            <tr key={ent.id} className={`hover:bg-slate-50/40 ${increasesBalance ? 'bg-rose-50/20' : 'bg-emerald-50/20'}`}>
+                              <td className="py-2.5 px-2 font-mono text-slate-400">{ent.date}</td>
+                              <td className="py-2.5 px-2">
+                                <div className="flex flex-col gap-1">
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border capitalize w-fit ${
+                                    ent.type === 'Opening Balance'
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : ent.type === 'Sale'
+                                      ? 'bg-rose-50 text-rose-700 border-rose-100'
+                                      : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                  }`}>
+                                    {ent.type}
+                                  </span>
+                                  <span className={`text-[9px] font-semibold ${increasesBalance ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                    {increasesBalance ? 'Adds to what they owe' : 'Reduces what they owe'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-2 text-right font-mono font-semibold text-rose-600">
+                                {ent.debit > 0 ? `Rs. ${ent.debit.toLocaleString()}` : '—'}
+                              </td>
+                              <td className="py-2.5 px-2 text-right font-mono font-semibold text-emerald-600">
+                                {ent.credit > 0 ? `Rs. ${ent.credit.toLocaleString()}` : '—'}
+                              </td>
+                              <td className={`py-2.5 px-2 text-right font-mono font-bold ${ent.balance > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                                Rs. {Math.round(ent.balance).toLocaleString()}
+                              </td>
+                              <td className="py-2.5 px-2 text-[11px] text-slate-400 max-w-[160px] truncate" title={ent.description}>
+                                {ent.description}
+                              </td>
+                            </tr>
+                          );
+                        })
                       ) : (
                         <tr>
                           <td colSpan={6} className="py-8 text-center text-slate-400">

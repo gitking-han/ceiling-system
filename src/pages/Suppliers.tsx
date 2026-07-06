@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Users, Search, Plus, Trash2, Edit2, AlertCircle, CheckCircle, Landmark, X, ClipboardList } from 'lucide-react';
+import { Users, Search, Plus, Trash2, Edit2, AlertCircle, CheckCircle, Landmark, X, ClipboardList, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { db, getTodayStr, addSupplierLedgerEntry, getSupplierOutstandingBalance, deleteSupplierLedgerByReference, refreshSuppliersFromApi, refreshSupplierLedgerFromApi } from '../utils/api';
 import { Supplier, SupplierLedgerEntry, Payment } from '../types';
 
@@ -187,6 +187,7 @@ export default function SuppliersPage() {
   const selectedLedgerEntries = selectedSupplierId
     ? ledger.filter((l) => l.supplierId === selectedSupplierId).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     : [];
+  const supplierOutstanding = selectedSupplier ? getSupplierOutstandingBalance(selectedSupplier.id) : 0;
 
   const [isMaterialsOpen, setIsMaterialsOpen] = useState(false);
   const materialsRef = useRef<HTMLDivElement>(null);
@@ -279,11 +280,14 @@ export default function SuppliersPage() {
                     </div>
                     <p className="text-[10px] text-slate-400 font-medium">{supplier.phone} • {supplier.address}</p>
                     <p className="text-[10px] text-slate-400 mt-2">Materials: {supplier.supplierMaterials.join(', ') || 'None listed'}</p>
-                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[10px] text-slate-400 font-semibold uppercase">Payable</span>
-                      <span className={`font-mono font-bold ${outstanding > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        Rs. {Math.round(outstanding).toLocaleString()}
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                        {outstanding > 0 ? 'You owe them' : 'Settled'}
                       </span>
+                      <div className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-semibold ${outstanding > 0 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                        {outstanding > 0 ? <ArrowUpRight size={12} /> : <CheckCircle size={12} />}
+                        <span className="font-mono">Rs. {Math.round(outstanding).toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -303,10 +307,15 @@ export default function SuppliersPage() {
                   <p className="text-[11px] text-slate-400 mt-1">Contact: {selectedSupplier.phone} | Address: {selectedSupplier.address}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase">Outstanding Payable</p>
-                    <p className="font-mono font-extrabold text-base text-rose-600 mt-0.5">
-                      Rs. {Math.round(getSupplierOutstandingBalance(selectedSupplier.id)).toLocaleString()}
+                  <div className={`text-right rounded-xl border px-3 py-2 ${supplierOutstanding > 0 ? 'border-rose-200 bg-rose-50' : 'border-emerald-200 bg-emerald-50'}`}>
+                    <p className={`text-[10px] font-semibold uppercase tracking-wide ${supplierOutstanding > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {supplierOutstanding > 0 ? 'You need to pay' : 'Nothing pending'}
+                    </p>
+                    <p className={`font-mono font-extrabold text-base mt-0.5 ${supplierOutstanding > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                      Rs. {Math.round(supplierOutstanding).toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {supplierOutstanding > 0 ? 'Pay this amount to clear the supplier balance.' : 'This supplier account is fully settled.'}
                     </p>
                   </div>
                   <button
@@ -341,29 +350,37 @@ export default function SuppliersPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-600">
                       {selectedLedgerEntries.length > 0 ? (
-                        selectedLedgerEntries.map((ent) => (
-                          <tr key={ent.id} className="hover:bg-slate-50/40">
-                            <td className="py-2.5 px-2 font-mono text-slate-400">{ent.date}</td>
-                            <td className="py-2.5 px-2">
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border capitalize ${ent.type === 'Opening Balance'
-                                  ? 'bg-slate-100 text-slate-700 border-slate-200'
-                                  : ent.type === 'Purchase'
-                                    ? 'bg-rose-50 text-rose-700 border-rose-100'
-                                    : 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                }`}>
-                                {ent.type}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-2 text-right font-mono font-semibold text-rose-600">
-                              {ent.debit > 0 ? `Rs. ${ent.debit.toLocaleString()}` : '—'}
-                            </td>
-                            <td className="py-2.5 px-2 text-right font-mono font-semibold text-emerald-600">
-                              {ent.credit > 0 ? `Rs. ${ent.credit.toLocaleString()}` : '—'}
-                            </td>
-                            <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-800">Rs. {Math.round(ent.balance).toLocaleString()}</td>
-                            <td className="py-2.5 px-2 text-[11px] text-slate-400 truncate" title={ent.description} style={{ maxWidth: 160 }}>{ent.description}</td>
-                          </tr>
-                        ))
+                        selectedLedgerEntries.map((ent) => {
+                          const increasesWhatYouOwe = ent.debit > 0 || ent.type === 'Opening Balance';
+                          return (
+                            <tr key={ent.id} className={`hover:bg-slate-50/40 ${increasesWhatYouOwe ? 'bg-rose-50/20' : 'bg-emerald-50/20'}`}>
+                              <td className="py-2.5 px-2 font-mono text-slate-400">{ent.date}</td>
+                              <td className="py-2.5 px-2">
+                                <div className="flex flex-col gap-1">
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border capitalize w-fit ${ent.type === 'Opening Balance'
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : ent.type === 'Purchase'
+                                        ? 'bg-rose-50 text-rose-700 border-rose-100'
+                                        : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                    }`}>
+                                    {ent.type}
+                                  </span>
+                                  <span className={`text-[9px] font-semibold ${increasesWhatYouOwe ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                    {increasesWhatYouOwe ? 'Adds to what you owe' : 'Reduces what you owe'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-2 text-right font-mono font-semibold text-rose-600">
+                                {ent.debit > 0 ? `Rs. ${ent.debit.toLocaleString()}` : '—'}
+                              </td>
+                              <td className="py-2.5 px-2 text-right font-mono font-semibold text-emerald-600">
+                                {ent.credit > 0 ? `Rs. ${ent.credit.toLocaleString()}` : '—'}
+                              </td>
+                              <td className={`py-2.5 px-2 text-right font-mono font-bold ${ent.balance > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>Rs. {Math.round(ent.balance).toLocaleString()}</td>
+                              <td className="py-2.5 px-2 text-[11px] text-slate-400 truncate" title={ent.description} style={{ maxWidth: 160 }}>{ent.description}</td>
+                            </tr>
+                          );
+                        })
                       ) : (
                         <tr>
                           <td colSpan={6} className="py-8 text-center text-slate-400">No ledger entries found.</td>
