@@ -13,7 +13,7 @@ import {
   FileText
 } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
-import { AppLanguage, getLanguageText } from '../utils/i18n';
+import { AppLanguage, getLanguageText, translateText } from '../utils/i18n';
 
 interface DashboardProps {
   setCurrentTab: (tab: string) => void;
@@ -367,7 +367,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice, language = 'en
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-display font-bold text-slate-950 text-sm">7-Day Production Trends</h3>
+              <h3 className="font-display font-bold text-slate-950 text-sm">{translateText(language, '7-Day Production Trends')}</h3>
               <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Output correlation (Wet vs Dry vs Final)</p>
             </div>
             <div className="flex items-center gap-3 text-[10px] font-bold font-sans">
@@ -464,7 +464,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice, language = 'en
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-display font-bold text-slate-950 text-sm">Sales vs. Expenses Performance</h3>
+              <h3 className="font-display font-bold text-slate-950 text-sm">{translateText(language, 'Sales vs. Expenses Performance')}</h3>
               <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Profit flow mapping (Last 7 Days)</p>
             </div>
             <div className="flex items-center gap-3 text-[10px] font-bold font-sans">
@@ -543,7 +543,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice, language = 'en
           <div>
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="font-display font-bold text-slate-950 text-sm">Recent Activity Stream</h3>
+                <h3 className="font-display font-bold text-slate-950 text-sm">{translateText(language, 'Recent Activity Stream')}</h3>
                 <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Chronological view of warehouse logs</p>
               </div>
               <button
@@ -595,7 +595,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice, language = 'en
         <div className="flex flex-col gap-6">
           {/* Low Stock Notifications */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="font-display font-bold text-slate-950 text-sm mb-1">Critical Stock Alerts</h3>
+            <h3 className="font-display font-bold text-slate-950 text-sm mb-1">{translateText(language, 'Critical Stock Alerts')}</h3>
             <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-5">Minimum threshold notifications</p>
 
             <div className="space-y-3.5">
@@ -629,7 +629,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice, language = 'en
           <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-sm flex-1 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-display font-bold text-white text-sm opacity-90">Active Formulas</h3>
+                <h3 className="font-display font-bold text-white text-sm opacity-90">{translateText(language, 'Active Formulas')}</h3>
                 <button
                   onClick={() => setCurrentTab('formulas')}
                   className="text-[9px] font-bold text-indigo-200 hover:text-white uppercase tracking-wider bg-white/10 px-2.5 py-1 rounded-md transition-colors"

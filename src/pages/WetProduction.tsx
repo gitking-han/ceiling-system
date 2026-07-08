@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, Trash2, Edit2, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import { db, getTodayStr, adjustMaterialStock, convertFormulaAmountToStock } from '../utils/api';
 import { LabourLedgerEntry, Operator, WetProduction } from '../types';
-import { AppLanguage } from '../utils/i18n';
+import { AppLanguage, translateText } from '../utils/i18n';
 
 interface WetProductionPageProps {
   language?: AppLanguage;
@@ -217,7 +217,7 @@ export default function WetProductionPage({ language = 'en' }: WetProductionPage
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <h3 className="font-display font-bold text-slate-800 text-sm mb-1">
-            {editingRecord ? 'Modify Wet Plate Entry' : 'Log New Wet Plate Batch'}
+            {editingRecord ? translateText(language, 'Modify Wet Plate Entry') : translateText(language, 'Log New Wet Plate Batch')}
           </h3>
           <p className="text-[11px] text-slate-400 font-medium mb-5">
             Record physical wet molding completions and direct bulk mix weights
@@ -312,7 +312,7 @@ export default function WetProductionPage({ language = 'en' }: WetProductionPage
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm lg:col-span-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div>
-              <h3 className="font-display font-bold text-slate-800 text-sm">Wet Molding Batch History</h3>
+              <h3 className="font-display font-bold text-slate-800 text-sm">{translateText(language, 'Wet Molding Batch History')}</h3>
               <p className="text-[11px] text-slate-400 font-medium">Daily plaster molding logs and automatic stock deductions</p>
             </div>
             <div className="relative w-full sm:w-64">

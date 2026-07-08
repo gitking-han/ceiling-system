@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Settings, Save, RotateCcw, HelpCircle, FileText, CheckCircle, Plus, X } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
 import { Formula, FormulaHistory } from '../types';
-import { AppLanguage, getLanguageText } from '../utils/i18n';
+import { AppLanguage, getLanguageText, translateText } from '../utils/i18n';
 
 interface FormulaSettingsProps {
   language?: AppLanguage;
@@ -144,10 +144,9 @@ export default function FormulaSettings({ language = 'en' }: FormulaSettingsProp
       <div className="bg-indigo-50/50 border border-indigo-100/60 rounded-xl p-4 flex gap-3 text-xs text-indigo-900">
         <HelpCircle className="text-indigo-600 mt-0.5 shrink-0" size={16} />
         <div>
-          <h4 className="font-bold text-slate-800">Dynamic Production Calculations</h4>
+          <h4 className="font-bold text-slate-800">{translateText(language, 'Dynamic Production Calculations')}</h4>
           <p className="text-indigo-600 mt-1 font-medium leading-relaxed">
-            The formulas below determine the exact amount of raw materials required to produce **one single final manufactured plate**. 
-            When Final Production is recorded, the system will dynamically query these values to calculate total consumption, deduct stock, and log audit details automatically.
+            {translateText(language, 'The formulas below determine the exact amount of raw materials required to produce one single final manufactured plate. When Final Production is recorded, the system will dynamically query these values to calculate total consumption, deduct stock, and log audit details automatically.')}
           </p>
         </div>
       </div>
@@ -157,8 +156,8 @@ export default function FormulaSettings({ language = 'en' }: FormulaSettingsProp
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-display font-bold text-slate-800 text-sm">Active Material Formulas</h3>
-              <p className="text-[11px] text-slate-400 font-medium">Consumption formula per 1 unit plate produced</p>
+              <h3 className="font-display font-bold text-slate-800 text-sm">{translateText(language, 'Active Material Formulas')}</h3>
+              <p className="text-[11px] text-slate-400 font-medium">{translateText(language, 'Consumption formula per 1 unit plate produced')}</p>
             </div>
             <div className="flex gap-2">
               <button
@@ -240,7 +239,7 @@ export default function FormulaSettings({ language = 'en' }: FormulaSettingsProp
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <FileText size={16} className="text-indigo-600" />
-            <h3 className="font-display font-bold text-slate-800 text-sm">Formula Change Audit</h3>
+            <h3 className="font-display font-bold text-slate-800 text-sm">{translateText(language, 'Formula Change Audit')}</h3>
           </div>
 
           <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
@@ -273,7 +272,7 @@ export default function FormulaSettings({ language = 'en' }: FormulaSettingsProp
         <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-lg border border-slate-100 w-full max-w-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
-              <h3 className="font-display font-bold text-slate-800 text-sm">Add Material Formula</h3>
+              <h3 className="font-display font-bold text-slate-800 text-sm">{translateText(language, 'Add Material Formula')}</h3>
               <button onClick={() => setShowAddFormula(false)} className="text-slate-400 hover:text-slate-600">
                 <X size={16} />
               </button>

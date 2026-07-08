@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Users, Search, Plus, Trash2, Edit2, AlertCircle, CheckCircle, Landmark, X, ClipboardList, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { db, getTodayStr, addSupplierLedgerEntry, getSupplierOutstandingBalance, deleteSupplierLedgerByReference, refreshSuppliersFromApi, refreshSupplierLedgerFromApi } from '../utils/api';
 import { Supplier, SupplierLedgerEntry, Payment } from '../types';
-import { AppLanguage } from '../utils/i18n';
+import { AppLanguage, translateText } from '../utils/i18n';
 
 interface SuppliersPageProps {
   language?: AppLanguage;
@@ -223,7 +223,7 @@ export default function SuppliersPage({ language = 'en' }: SuppliersPageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-display font-bold text-slate-800 text-sm">Supplier Directory</h3>
+            <h3 className="font-display font-bold text-slate-800 text-sm">{translateText(language, 'Supplier Directory')}</h3>
             <button
               onClick={() => {
                 setEditingSupplier(null);
@@ -231,7 +231,7 @@ export default function SuppliersPage({ language = 'en' }: SuppliersPageProps) {
               }}
               className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center gap-1 cursor-pointer"
             >
-              <Plus size={12} /> Add
+              <Plus size={12} /> {translateText(language, 'Add')}
             </button>
           </div>
 
@@ -239,7 +239,7 @@ export default function SuppliersPage({ language = 'en' }: SuppliersPageProps) {
             <Search className="absolute inset-y-0 left-2.5 my-auto text-slate-400" size={14} />
             <input
               type="text"
-              placeholder="Search suppliers..."
+              placeholder={translateText(language, 'Search suppliers')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-100 rounded-lg text-slate-800 focus:bg-white"
