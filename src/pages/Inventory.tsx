@@ -443,7 +443,7 @@ export default function Inventory() {
                           onClick={() => setExpandedPanni((value) => !value)}
                           className="flex items-center gap-2 text-left"
                         >
-                          {expandedPanni ? <ChevronDown size={14} className="text-slate-500" /> : <ChevronRight size={14} className="text-slate-500" />}
+                          {expandedPanni ? <ChevronDown size={20} className="text-slate-500" /> : <ChevronRight size={20} className="text-slate-500" />}
                           <div>
                             <p className="text-slate-800">Panni</p>
                             <p className="text-[9px] text-slate-400 font-medium mt-0.5">Expandable stock types for different panni varieties</p>
