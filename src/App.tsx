@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, getCurrentUser, setCurrentUser as setStoredUser } from './utils/api';
 import { User } from './types';
+import { AppLanguage, getStoredLanguage, setStoredLanguage } from './utils/i18n';
 
 // Import Pages
 import Login from './pages/Login';
@@ -27,6 +28,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(true);
+  const [language, setLanguage] = useState<AppLanguage>(getStoredLanguage());
 
   useEffect(() => {
     const storage = window.localStorage;
@@ -77,6 +79,11 @@ export default function App() {
   const handleLogout = () => {
     setStoredUser(null);
     setCurrentUser(null);
+  };
+
+  const handleLanguageChange = (nextLanguage: AppLanguage) => {
+    setLanguage(nextLanguage);
+    setStoredLanguage(nextLanguage);
   };
 
   if (isSyncing) {
@@ -152,6 +159,7 @@ export default function App() {
         onLogout={handleLogout}
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
+        language={language}
       />
 
       {/* Main Container */}
@@ -161,6 +169,8 @@ export default function App() {
           currentTab={currentTab}
           currentUser={currentUser}
           onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+          language={language}
+          onLanguageChange={handleLanguageChange}
         />
 
         {/* Dynamic Page Stage */}

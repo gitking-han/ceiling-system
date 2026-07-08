@@ -103,6 +103,7 @@ export default function ReportsPage() {
   const filteredFinal = final.filter((f) => isWithinRange(f.date));
   const filteredCustomers = customers.filter((c) => matchesSearch(`${c.name} ${c.phone} ${c.address}`));
   const filteredTxs = txs.filter((t) => isWithinRange(t.date) && matchesSearch(`${t.materialName} ${t.notes}`));
+  const filteredLabour = db.getLabourLedger().filter((entry) => isWithinRange(entry.date) && matchesSearch(`${entry.operatorName} ${entry.notes}`));
 
   const salesQty = filteredSales.reduce((sum, s) => sum + s.quantity, 0);
   const salesGross = filteredSales.reduce((sum, s) => sum + s.totalAmount, 0);
@@ -114,6 +115,18 @@ export default function ReportsPage() {
     acc[e.category] = (acc[e.category] || 0) + e.amount;
     return acc;
   }, {} as Record<string, number>);
+  const labourCost = filteredLabour.filter((entry) => entry.type === 'earning').reduce((sum, entry) => sum + entry.amount, 0);
+  const stockUsedCost = filteredWet.reduce((sum, record) => {
+    const material = materials.find((item) => item.name.toLowerCase().includes('plaster'));
+    if (!material || record.plasterParisUsed <= 0) return sum;
+    return sum + record.plasterParisUsed * material.costPerUnit;
+  }, 0) + filteredFinal.reduce((sum, record) => {
+    return sum + (record.consumptions || []).reduce((consumptionSum, cons) => {
+      const material = materials.find((item) => item.name.toLowerCase() === cons.materialName.toLowerCase());
+      if (!material || !cons.calculatedAmount) return consumptionSum;
+      return consumptionSum + Number(cons.calculatedAmount) * material.costPerUnit;
+    }, 0);
+  }, 0);
 
   const totalWasteQty = filteredWaste.reduce((sum, w) => sum + w.quantity, 0);
   const wetLoss = filteredWaste.filter((w) => w.source === 'wet').reduce((sum, w) => sum + w.quantity, 0);
@@ -130,7 +143,9 @@ export default function ReportsPage() {
   const remainingDry = Math.max(0, totalDryProduced - totalDryReceivedToFinal);
   const remainingFinal = Math.max(0, totalFinalProduced - soldQty);
 
-  const profit = netRevenue - totalExpenses;
+  const revenue = netRevenue;
+  const netProfit = revenue - stockUsedCost - totalExpenses - labourCost;
+  const profitPerPlate = soldQty > 0 ? netProfit / soldQty : 0;
   const totalReceivables = filteredCustomers.reduce((sum, c) => sum + getCustomerOutstandingBalance(c.id), 0);
   const procurementCost = filteredTxs.filter((t) => t.type === 'in').reduce((sum, t) => sum + t.cost, 0);
 
@@ -249,14 +264,22 @@ export default function ReportsPage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+            <p className="text-[9px] text-emerald-800 font-bold uppercase tracking-wider">Revenue</p>
+            <p className="font-mono text-sm font-extrabold text-emerald-700 mt-1">{formatCurrency(revenue)}</p>
+          </div>
           <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
             <p className="text-[9px] text-emerald-800 font-bold uppercase tracking-wider">Net Profit</p>
-            <p className="font-mono text-sm font-extrabold text-emerald-700 mt-1">{formatCurrency(profit)}</p>
+            <p className="font-mono text-sm font-extrabold text-emerald-700 mt-1">{formatCurrency(netProfit)}</p>
           </div>
           <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg">
             <p className="text-[9px] text-rose-800 font-bold uppercase tracking-wider">Total Expenses</p>
             <p className="font-mono text-sm font-extrabold text-rose-700 mt-1">{formatCurrency(totalExpenses)}</p>
+          </div>
+          <div className="p-3 bg-violet-50 border border-violet-100 rounded-lg">
+            <p className="text-[9px] text-violet-800 font-bold uppercase tracking-wider">Labour Cost</p>
+            <p className="font-mono text-sm font-extrabold text-violet-700 mt-1">{formatCurrency(labourCost)}</p>
           </div>
           <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
             <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wider">Waste & Defects</p>
@@ -296,8 +319,16 @@ export default function ReportsPage() {
                 <p className="font-mono font-bold text-red-600 mt-1">{formatCurrency(discounts)}</p>
               </div>
               <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Revenue</p>
+                <p className="font-mono font-bold text-emerald-700 mt-1">{formatCurrency(revenue)}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50">
                 <p className="text-slate-400 uppercase">Net Revenue</p>
                 <p className="font-mono font-bold text-emerald-700 mt-1">{formatCurrency(netRevenue)}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50">
+                <p className="text-slate-400 uppercase">Profit / Plate</p>
+                <p className="font-mono font-bold text-emerald-700 mt-1">{formatCurrency(profitPerPlate)}</p>
               </div>
             </div>
           </div>

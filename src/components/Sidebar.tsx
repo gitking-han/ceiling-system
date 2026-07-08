@@ -17,6 +17,7 @@ import {
   X
 } from 'lucide-react';
 import { User } from '../types';
+import { AppLanguage, getLanguageText } from '../utils/i18n';
 
 interface SidebarProps {
   currentTab: string;
@@ -25,6 +26,7 @@ interface SidebarProps {
   onLogout: () => void;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
+  language: AppLanguage;
 }
 
 export default function Sidebar({
@@ -33,23 +35,24 @@ export default function Sidebar({
   currentUser,
   onLogout,
   isOpen,
-  setIsOpen
+  setIsOpen,
+  language
 }: SidebarProps) {
   const menuItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
-    { id: 'inventory', name: 'Inventory', icon: Package },
-    { id: 'formulas', name: 'Formula Settings', icon: Settings },
-    { id: 'wet-prod', name: 'Wet Production', icon: Droplets },
-    { id: 'dry-prod', name: 'Dry Production', icon: Sun },
-    { id: 'final-prod', name: 'Final Production', icon: CheckSquare },
-    { id: 'waste', name: 'Waste Management', icon: Trash2 },
-    { id: 'expenses', name: 'Expenses', icon: Receipt },
-    { id: 'labour', name: 'Labour', icon: Users },
-    { id: 'customers', name: 'Customers', icon: Users },
-    { id: 'suppliers', name: 'Suppliers', icon: Landmark },
-    { id: 'sales', name: 'Sales', icon: ShoppingCart },
-    { id: 'invoices', name: 'Invoices', icon: FileText },
-    { id: 'reports', name: 'Reports', icon: BarChart3 },
+    { id: 'dashboard', nameKey: 'dashboard', icon: LayoutDashboard },
+    { id: 'inventory', nameKey: 'inventory', icon: Package },
+    { id: 'formulas', nameKey: 'formulas', icon: Settings },
+    { id: 'wet-prod', nameKey: 'wetProd', icon: Droplets },
+    { id: 'dry-prod', nameKey: 'dryProd', icon: Sun },
+    { id: 'final-prod', nameKey: 'finalProd', icon: CheckSquare },
+    { id: 'waste', nameKey: 'waste', icon: Trash2 },
+    { id: 'expenses', nameKey: 'expenses', icon: Receipt },
+    { id: 'labour', nameKey: 'labour', icon: Users },
+    { id: 'customers', nameKey: 'customers', icon: Users },
+    { id: 'suppliers', nameKey: 'suppliers', icon: Landmark },
+    { id: 'sales', nameKey: 'sales', icon: ShoppingCart },
+    { id: 'invoices', nameKey: 'invoices', icon: FileText },
+    { id: 'reports', nameKey: 'reports', icon: BarChart3 },
   ];
 
   return (
@@ -75,7 +78,7 @@ export default function Sidebar({
             </div>
             <div>
               <h1 className="font-display font-bold text-slate-900 text-sm tracking-tight leading-tight">PlatePro ERP</h1>
-              <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">Production Hub</p>
+              <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">{getLanguageText(language, 'productionHub')}</p>
             </div>
           </div>
           <button
@@ -94,7 +97,7 @@ export default function Sidebar({
             </div>
             <div className="min-w-0 flex-1">
               <h4 className="text-xs font-bold text-slate-800 truncate">{currentUser?.name || 'Administrator'}</h4>
-              <p className="text-[10px] text-slate-400 font-mono font-medium uppercase tracking-wider">{currentUser?.role || 'admin'}</p>
+              <p className="text-[10px] text-slate-400 font-mono font-medium uppercase tracking-wider">{currentUser?.role === 'staff' ? getLanguageText(language, 'staff') : getLanguageText(language, 'admin')}</p>
             </div>
           </div>
         </div>
@@ -118,7 +121,7 @@ export default function Sidebar({
                 }`}
               >
                 <Icon size={16} className={isActive ? 'text-indigo-600' : 'text-slate-400'} />
-                {item.name}
+                {getLanguageText(language, item.nameKey as any)}
               </button>
             );
           })}
@@ -131,7 +134,7 @@ export default function Sidebar({
             className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 transition-all"
           >
             <LogOut size={16} />
-            Sign Out
+            {getLanguageText(language, 'signOut')}
           </button>
         </div>
       </aside>
