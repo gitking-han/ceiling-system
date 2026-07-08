@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Users, Plus, Trash2, Edit2, CheckCircle, Wallet, Search, Calendar } from 'lucide-react';
+import { Users, Trash2, Edit2, CheckCircle, Wallet, Search, X, AlertTriangle } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
 import { LabourLedgerEntry, Operator } from '../types';
 
@@ -19,6 +19,11 @@ export default function LabourPage() {
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [paymentOperator, setPaymentOperator] = useState<Operator | null>(null);
+  const [deleteOperator, setDeleteOperator] = useState<Operator | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState(0);
 
   const triggerToast = (msg: string) => {
     setToast(msg);
@@ -74,29 +79,51 @@ export default function LabourPage() {
     setRatePerPlate(operator.ratePerPlate);
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm('Delete this operator?')) return;
-    const updated = operators.filter((operator) => operator.id !== id);
+  const handleDelete = (operator: Operator) => {
+    setDeleteOperator(operator);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteOperator) return;
+
+    const updated = operators.filter((operator) => operator.id !== deleteOperator.id);
+    const remainingLedger = ledger.filter((entry) => entry.operatorId !== deleteOperator.id);
+
     db.saveOperators(updated);
+    db.saveLabourLedger(remainingLedger);
     setOperators(updated);
-    setLedger(ledger.filter((entry) => entry.operatorId !== id));
-    db.saveLabourLedger(ledger.filter((entry) => entry.operatorId !== id));
+    setLedger(remainingLedger);
+    setShowDeleteModal(false);
+    setDeleteOperator(null);
     triggerToast('Operator removed.');
   };
 
   const handlePayment = (operator: Operator) => {
-    const amount = Number(prompt(`Enter payment amount for ${operator.name}`));
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    setPaymentOperator(operator);
+    setPaymentAmount(0);
+    setShowPaymentModal(true);
+  };
+
+  const submitPayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentOperator) return;
+
+    const amount = Number(paymentAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      triggerToast('Enter a valid payment amount.');
+      return;
+    }
 
     const entry: LabourLedgerEntry = {
       id: 'labour_' + Math.random().toString(36).substr(2, 9),
-      operatorId: operator.id,
-      operatorName: operator.name,
+      operatorId: paymentOperator.id,
+      operatorName: paymentOperator.name,
       date: getTodayStr(),
-      stage: operator.stage,
+      stage: paymentOperator.stage,
       plates: 0,
-      ratePerPlate: operator.ratePerPlate,
-      amount: amount,
+      ratePerPlate: paymentOperator.ratePerPlate,
+      amount,
       type: 'payment',
       referenceId: 'manual_payment',
       notes: 'Manual payment recorded',
@@ -105,12 +132,16 @@ export default function LabourPage() {
 
     const updatedLedger = [...ledger, entry];
     const updatedOperators = operators.map((item) =>
-      item.id === operator.id ? { ...item, balanceDue: Math.max(0, item.balanceDue - amount) } : item
+      item.id === paymentOperator.id ? { ...item, balanceDue: Math.max(0, item.balanceDue - amount) } : item
     );
+
     db.saveLabourLedger(updatedLedger);
     db.saveOperators(updatedOperators);
     setLedger(updatedLedger);
     setOperators(updatedOperators);
+    setShowPaymentModal(false);
+    setPaymentOperator(null);
+    setPaymentAmount(0);
     triggerToast('Payment recorded.');
   };
 
@@ -173,7 +204,7 @@ export default function LabourPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => handleEdit(operator)} className="p-2 rounded-lg text-slate-500 hover:bg-slate-50"><Edit2 size={14} /></button>
-                  <button onClick={() => handleDelete(operator.id)} className="p-2 rounded-lg text-slate-500 hover:bg-slate-50"><Trash2 size={14} /></button>
+                  <button onClick={() => handleDelete(operator)} className="p-2 rounded-lg text-slate-500 hover:bg-slate-50"><Trash2 size={14} /></button>
                   <button onClick={() => handlePayment(operator)} className="px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold flex items-center gap-1">
                     <Wallet size={14} /> Pay
                   </button>
@@ -218,6 +249,73 @@ export default function LabourPage() {
           </table>
         </div>
       </div>
+
+      {showPaymentModal && paymentOperator && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+              <div>
+                <h3 className="font-display font-bold text-slate-800 text-sm flex items-center gap-2">
+                  <Wallet size={16} className="text-emerald-600" />
+                  Record Payment
+                </h3>
+                <p className="text-[11px] text-slate-400 font-medium">{paymentOperator.name}</p>
+              </div>
+              <button type="button" onClick={() => { setShowPaymentModal(false); setPaymentOperator(null); setPaymentAmount(0); }} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={submitPayment} className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Amount (Rs)</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(Number(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <button type="button" onClick={() => { setShowPaymentModal(false); setPaymentOperator(null); setPaymentAmount(0); }} className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold">
+                  Cancel
+                </button>
+                <button type="submit" className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">
+                  Save Payment
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && deleteOperator && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={16} className="text-amber-600" />
+                <h3 className="font-display font-bold text-slate-800 text-sm">Delete Operator</h3>
+              </div>
+              <button type="button" onClick={() => { setShowDeleteModal(false); setDeleteOperator(null); }} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4 text-xs text-slate-600">
+              <p>Delete <span className="font-semibold text-slate-800">{deleteOperator.name}</span> and remove their labour ledger entries?</p>
+              <div className="flex items-center justify-end gap-2">
+                <button type="button" onClick={() => { setShowDeleteModal(false); setDeleteOperator(null); }} className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold">
+                  Cancel
+                </button>
+                <button type="button" onClick={confirmDelete} className="px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold">
+                  Delete Operator
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
