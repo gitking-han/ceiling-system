@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Receipt, Search, Plus, Trash2, Edit2, AlertCircle, CheckCircle, Calculator, X } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
 import { Expense, FinalProduction } from '../types';
-import { AppLanguage, translateText } from '../utils/i18n';
+import { AppLanguage } from '../utils/i18n';
 
 interface ExpensesPageProps {
   language?: AppLanguage;
@@ -175,7 +175,7 @@ export default function ExpensesPage({ language = 'en' }: ExpensesPageProps) {
             <Search className="absolute inset-y-0 left-3 my-auto text-slate-400" size={14} />
             <input
               type="text"
-              placeholder={translateText(language, 'Search expenses')}
+              placeholder="Search expenses by memo or date..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-800 focus:bg-white"
@@ -204,7 +204,7 @@ export default function ExpensesPage({ language = 'en' }: ExpensesPageProps) {
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center justify-center gap-2 shadow-sm cursor-pointer"
         >
           <Plus size={14} />
-          {translateText(language, 'Record New Expense')}
+          Record New Expense
         </button>
       </div>
 
@@ -212,8 +212,8 @@ export default function ExpensesPage({ language = 'en' }: ExpensesPageProps) {
       <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-50">
           <div>
-            <h3 className="font-display font-bold text-slate-800 text-sm">{translateText(language, 'Disbursements & Expense Ledger')}</h3>
-            <p className="text-[11px] text-slate-400 font-medium">{translateText(language, 'Record of operational bills, freights and factory wages')}</p>
+            <h3 className="font-display font-bold text-slate-800 text-sm">Disbursements &amp; Expense Ledger</h3>
+            <p className="text-[11px] text-slate-400 font-medium">Record of operational bills, freights and factory wages</p>
           </div>
           <span className="text-[10px] font-mono font-bold bg-slate-50 border border-slate-100 text-slate-500 px-2 py-1 rounded">
             Total recorded: Rs. {Math.round(filteredExpenses.reduce((sum, item) => sum + item.amount, 0)).toLocaleString()}

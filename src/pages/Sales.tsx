@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ShoppingCart, Search, Plus, Trash2, Printer, AlertCircle, CheckCircle, FileText, X, Percent, DollarSign } from 'lucide-react';
 import { db, getTodayStr, addLedgerEntry, deleteLedgerByReference } from '../utils/api';
 import { Sale, Customer } from '../types';
-import { AppLanguage, getLanguageText, translateText } from '../utils/i18n';
+import { AppLanguage, getLanguageText } from '../utils/i18n';
 
 interface SalesPageProps {
   language?: AppLanguage;
@@ -177,11 +177,11 @@ export default function SalesPage({ language = 'en' }: SalesPageProps) {
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm no-print">
         <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
           <div>
-            <h3 className="font-display font-bold text-slate-800 text-sm">{translateText(language, 'Dispatched Orders Registry')}</h3>
-            <p className="text-[11px] text-slate-400 font-medium">{translateText(language, 'Billed sales and customer receivable statements')}</p>
+            <h3 className="font-display font-bold text-slate-800 text-sm">Dispatched Orders Registry</h3>
+            <p className="text-[11px] text-slate-400 font-medium">Billed sales and customer receivable statements</p>
           </div>
           <span className="text-[10px] font-mono font-bold bg-slate-50 border border-slate-100 text-slate-500 px-2 py-1 rounded">
-            {translateText(language, 'Overall Dispatched')}: Rs. {Math.round(filteredSales.reduce((sum, s) => sum + s.grandTotal, 0)).toLocaleString()}
+            Overall Dispatched: Rs. {Math.round(filteredSales.reduce((sum, s) => sum + s.grandTotal, 0)).toLocaleString()}
           </span>
         </div>
 
@@ -189,14 +189,14 @@ export default function SalesPage({ language = 'en' }: SalesPageProps) {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                <th className="py-3 px-2">{translateText(language, 'Invoice No')}</th>
-                <th className="py-3 px-2">{translateText(language, 'Dispatch Date')}</th>
-                <th className="py-3 px-2">{translateText(language, 'Customer name')}</th>
-                <th className="py-3 px-2">{translateText(language, 'Manufactured Plate Type')}</th>
-                <th className="py-3 px-2 text-right">{translateText(language, 'Quantity')}</th>
-                <th className="py-3 px-2 text-right">{translateText(language, 'Billed Rate')}</th>
-                <th className="py-3 px-2 text-right">{translateText(language, 'Grand Total')}</th>
-                <th className="py-3 px-2 text-right">{translateText(language, 'Invoice Actions')}</th>
+                <th className="py-3 px-2">Invoice No</th>
+                <th className="py-3 px-2">Dispatch Date</th>
+                <th className="py-3 px-2">Customer name</th>
+                <th className="py-3 px-2">Manufactured Plate Type</th>
+                <th className="py-3 px-2 text-right">Quantity</th>
+                <th className="py-3 px-2 text-right">Billed Rate</th>
+                <th className="py-3 px-2 text-right">Grand Total</th>
+                <th className="py-3 px-2 text-right">Invoice Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">

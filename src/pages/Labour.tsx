@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Users, Trash2, Edit2, CheckCircle, Wallet, Search, X, AlertTriangle } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
 import { LabourLedgerEntry, Operator } from '../types';
-import { AppLanguage, translateText } from '../utils/i18n';
+import { AppLanguage } from '../utils/i18n';
 
 const stageOptions: Array<{ value: Operator['stage']; label: string }> = [
   { value: 'wet', label: 'Wet Production' },
@@ -161,25 +161,25 @@ export default function LabourPage({ language = 'en' }: LabourPageProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <h3 className="font-display font-bold text-slate-800 text-sm mb-1">{translateText(language, 'Operator Directory')}</h3>
-          <p className="text-[11px] text-slate-400 font-medium mb-5">{translateText(language, 'Manage wet, dry, final, and waste operators with simple labour rates.')}</p>
+          <h3 className="font-display font-bold text-slate-800 text-sm mb-1">Operator Directory</h3>
+          <p className="text-[11px] text-slate-400 font-medium mb-5">Manage wet, dry, final, and waste operators with simple labour rates.</p>
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
-              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">{translateText(language, 'Operator Name')}</label>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Operator Name</label>
               <input value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800" />
             </div>
             <div>
-              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">{translateText(language, 'Stage')}</label>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Stage</label>
               <select value={stage} onChange={(e) => setStage(e.target.value as Operator['stage'])} className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800">
                 {stageOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">{translateText(language, 'Rate per Plate (Rs)')}</label>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Rate per Plate (Rs)</label>
               <input type="number" min="0" value={ratePerPlate} onChange={(e) => setRatePerPlate(Number(e.target.value) || 0)} className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800" />
             </div>
             <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-xs tracking-wider uppercase transition-all">
-              {editingId ? translateText(language, 'Save Operator') : translateText(language, 'Add Operator')}
+              {editingId ? 'Save Operator' : 'Add Operator'}
             </button>
           </form>
         </div>

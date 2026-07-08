@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Users, Search, Plus, Trash2, Edit2, AlertCircle, CheckCircle, FileText, Landmark, X, ArrowUpRight, ArrowDownRight, ClipboardList } from 'lucide-react';
 import { db, getTodayStr, addLedgerEntry, getCustomerOutstandingBalance, deleteLedgerByReference } from '../utils/api';
 import { Customer, CustomerLedgerEntry, Payment } from '../types';
-import { AppLanguage, translateText } from '../utils/i18n';
+import { AppLanguage } from '../utils/i18n';
 
 interface CustomersPageProps {
   language?: AppLanguage;
@@ -231,7 +231,7 @@ export default function CustomersPage({ language = 'en' }: CustomersPageProps) {
         {/* Directory Panel */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm lg:col-span-1 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-display font-bold text-slate-800 text-sm">{translateText(language, 'Customer Directory')}</h3>
+            <h3 className="font-display font-bold text-slate-800 text-sm">Customer Directory</h3>
             <button
               onClick={() => {
                 setEditingCustomer(null);
@@ -239,7 +239,7 @@ export default function CustomersPage({ language = 'en' }: CustomersPageProps) {
               }}
               className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center gap-1 cursor-pointer"
             >
-              <Plus size={12} /> {translateText(language, 'Add')}
+              <Plus size={12} /> Add
             </button>
           </div>
 
@@ -247,7 +247,7 @@ export default function CustomersPage({ language = 'en' }: CustomersPageProps) {
             <Search className="absolute inset-y-0 left-2.5 my-auto text-slate-400" size={14} />
             <input
               type="text"
-              placeholder={translateText(language, 'Search directory')}
+              placeholder="Search directory..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-100 rounded-lg text-slate-800 focus:bg-white"
@@ -449,7 +449,7 @@ export default function CustomersPage({ language = 'en' }: CustomersPageProps) {
               )}
 
               <div>
-                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">{translateText(language, 'Customer / Agency Name')}</label>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Customer / Agency Name</label>
                 <input
                   type="text"
                   required
@@ -461,7 +461,7 @@ export default function CustomersPage({ language = 'en' }: CustomersPageProps) {
               </div>
 
               <div>
-                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">{translateText(language, 'Phone Number')}</label>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Phone Number</label>
                 <input
                   type="text"
                   value={phone}
@@ -472,7 +472,7 @@ export default function CustomersPage({ language = 'en' }: CustomersPageProps) {
               </div>
 
               <div>
-                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">{translateText(language, 'Full Delivery Address')}</label>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Full Delivery Address</label>
                 <input
                   type="text"
                   value={address}

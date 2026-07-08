@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Trash2, AlertTriangle, Search, Filter, Calendar, BarChart3, Plus, X, ArrowDownRight, CheckCircle } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
 import { LabourLedgerEntry, WasteRecord } from '../types';
-import { AppLanguage, translateText } from '../utils/i18n';
+import { AppLanguage } from '../utils/i18n';
 
 interface WasteManagementPageProps {
   language?: AppLanguage;
@@ -138,7 +138,7 @@ export default function WasteManagement({ language = 'en' }: WasteManagementPage
             <AlertTriangle size={18} />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{translateText(language, 'Breakage Today')}</p>
+            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Breakage Today</p>
             <h3 className="font-display font-bold text-slate-800 text-lg leading-tight mt-0.5">
               {totalWasteToday.toLocaleString()} <span className="text-xs font-normal text-slate-400">pcs</span>
             </h3>
@@ -151,7 +151,7 @@ export default function WasteManagement({ language = 'en' }: WasteManagementPage
             <Calendar size={18} />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{translateText(language, 'Monthly Defect Sum')}</p>
+            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Monthly Defect Sum</p>
             <h3 className="font-display font-bold text-slate-800 text-lg leading-tight mt-0.5">
               {totalWasteThisMonth.toLocaleString()} <span className="text-xs font-normal text-slate-400">pcs</span>
             </h3>
@@ -164,7 +164,7 @@ export default function WasteManagement({ language = 'en' }: WasteManagementPage
             <BarChart3 size={18} />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{translateText(language, 'Cumulative Defect Rate')}</p>
+            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Cumulative Defect Rate</p>
             <h3 className="font-display font-bold text-slate-800 text-lg leading-tight mt-0.5">
               {totalWasteAllTime.toLocaleString()} <span className="text-xs font-normal text-slate-400">pcs</span>
             </h3>
@@ -192,8 +192,8 @@ export default function WasteManagement({ language = 'en' }: WasteManagementPage
       <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-slate-50 pb-4">
           <div>
-            <h3 className="font-display font-bold text-slate-800 text-sm">{translateText(language, 'Defects & Breakage Ledger')}</h3>
-            <p className="text-[11px] text-slate-400 font-medium">{translateText(language, 'Detailed tracking for audit compliance and process monitoring')}</p>
+            <h3 className="font-display font-bold text-slate-800 text-sm">Defects &amp; Breakage Ledger</h3>
+            <p className="text-[11px] text-slate-400 font-medium">Detailed tracking for audit compliance and process monitoring</p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -224,7 +224,7 @@ export default function WasteManagement({ language = 'en' }: WasteManagementPage
               className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg flex items-center justify-center gap-1.5 shadow-sm cursor-pointer shrink-0"
             >
               <Plus size={14} />
-              {translateText(language, 'Manual Correction Log')}
+              Manual Correction Log
             </button>
           </div>
         </div>

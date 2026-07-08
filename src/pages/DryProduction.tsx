@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Sun, ArrowRight, Search, Trash2, Edit2, AlertCircle, FileSpreadsheet, X } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
 import { DryProduction, LabourLedgerEntry, WasteRecord } from '../types';
-import { AppLanguage, translateText } from '../utils/i18n';
+import { AppLanguage } from '../utils/i18n';
 
 interface DryProductionPageProps {
   language?: AppLanguage;
@@ -208,10 +208,10 @@ export default function DryProductionPage({ language = 'en' }: DryProductionPage
         {/* Entry Form */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <h3 className="font-display font-bold text-slate-800 text-sm mb-1">
-            {editingRecord ? translateText(language, 'Modify Dry Plate Entry') : translateText(language, 'Log Dry Chamber Batch')}
+            {editingRecord ? 'Modify Dry Plate Entry' : 'Log Dry Chamber Batch'}
           </h3>
           <p className="text-[11px] text-slate-400 font-medium mb-5">
-            {translateText(language, 'Log transfer of wet plates into hot drying chambers and record final outputs')}
+            Log transfer of wet plates into hot drying chambers and record final outputs
           </p>
 
           {error && (
@@ -309,7 +309,7 @@ export default function DryProductionPage({ language = 'en' }: DryProductionPage
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm lg:col-span-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div>
-              <h3 className="font-display font-bold text-slate-800 text-sm">{translateText(language, 'Dry Chamber Batch History')}</h3>
+              <h3 className="font-display font-bold text-slate-800 text-sm">Dry Chamber Batch History</h3>
               <p className="text-[11px] text-slate-400 font-medium">Monitoring of hot drying results and shrinkage breakage</p>
             </div>
             {/* Search Date */}
