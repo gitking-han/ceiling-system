@@ -2,8 +2,13 @@ import React, { useState } from 'react';
 import { Receipt, Search, Plus, Trash2, Edit2, AlertCircle, CheckCircle, Calculator, X } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
 import { Expense, FinalProduction } from '../types';
+import { AppLanguage } from '../utils/i18n';
 
-export default function ExpensesPage() {
+interface ExpensesPageProps {
+  language?: AppLanguage;
+}
+
+export default function ExpensesPage({ language = 'en' }: ExpensesPageProps) {
   const [expenses, setExpenses] = useState<Expense[]>(db.getExpenses());
   const [finalProd] = useState<FinalProduction[]>(db.getFinalProduction());
 

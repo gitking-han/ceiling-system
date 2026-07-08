@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { ShieldCheck, Lock, User as UserIcon, AlertCircle } from 'lucide-react';
 import { setCurrentUser } from '../utils/api';
 import { User } from '../types';
+import { AppLanguage, getLanguageText } from '../utils/i18n';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
+  language?: AppLanguage;
 }
 
-export default function Login({ onLoginSuccess }: LoginProps) {
+export default function Login({ onLoginSuccess, language = 'en' }: LoginProps) {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin');
   const [error, setError] = useState('');
@@ -30,13 +32,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           setCurrentUser(data.user);
           onLoginSuccess(data.user);
         } else {
-          setError(data.error || 'Invalid username or password. Please try again.');
+          setError(data.error || getLanguageText(language, 'authError'));
           setLoading(false);
         }
       })
       .catch(err => {
         console.error('Authentication error:', err);
-        setError('Server authentication failed. Please check backend connection.');
+        setError(getLanguageText(language, 'authServerError'));
         setLoading(false);
       });
   };
@@ -50,10 +52,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             P
           </div>
           <h2 className="font-display font-bold text-slate-800 text-2xl tracking-tight">
-            PlateFactory ERP
+            {getLanguageText(language, 'loginTitle')}
           </h2>
           <p className="text-sm text-slate-500 mt-1.5">
-            Production &amp; Inventory Control Suite
+            {getLanguageText(language, 'loginSubtitle')}
           </p>
         </div>
 
@@ -61,7 +63,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
           <div className="flex items-center gap-2 mb-6">
             <ShieldCheck className="text-indigo-600" size={20} />
-            <h3 className="font-semibold text-slate-800 text-sm">Administrator Authentication</h3>
+            <h3 className="font-semibold text-slate-800 text-sm">{getLanguageText(language, 'adminAuth')}</h3>
           </div>
 
           {error && (
@@ -75,7 +77,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             {/* Username Input */}
             <div>
               <label htmlFor="username" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                Username
+                {getLanguageText(language, 'username')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -87,7 +89,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter administrator username"
+                  placeholder={getLanguageText(language, 'placeholderUsername')}
                   className="block w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-800 placeholder-slate-400 font-medium"
                 />
               </div>
@@ -96,7 +98,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             {/* Password Input */}
             <div>
               <label htmlFor="password" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                Password
+                {getLanguageText(language, 'password')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -123,7 +125,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                'Sign In'
+                getLanguageText(language, 'signIn')
               )}
             </button>
           </form>

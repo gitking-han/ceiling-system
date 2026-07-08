@@ -97,7 +97,7 @@ export default function App() {
 
   // If user is not logged in, render the clean login screen
   if (!currentUser) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+    return <Login onLoginSuccess={handleLoginSuccess} language={language} />;
   }
 
   // Active page renderer mapping
@@ -110,33 +110,34 @@ export default function App() {
             onViewInvoice={(id) => {
               setCurrentTab('sales');
             }}
+            language={language}
           />
         );
       case 'inventory':
-        return <Inventory />;
+        return <Inventory language={language} />;
       case 'formulas':
-        return <FormulaSettings />;
+        return <FormulaSettings language={language} />;
       case 'wet-prod':
-        return <WetProduction />;
+        return <WetProduction language={language} />;
       case 'dry-prod':
-        return <DryProduction />;
+        return <DryProduction language={language} />;
       case 'final-prod':
-        return <FinalProduction />;
+        return <FinalProduction language={language} />;
       case 'waste':
-        return <WasteManagement />;
+        return <WasteManagement language={language} />;
       case 'expenses':
-        return <Expenses />;
+        return <Expenses language={language} />;
       case 'labour':
-        return <Labour />;
+        return <Labour language={language} />;
       case 'customers':
-        return <Customers />;
+        return <Customers language={language} />;
       case 'suppliers':
-        return <Suppliers />;
+        return <Suppliers language={language} />;
       case 'sales':
       case 'invoices': // Both map to our full sales and invoicing operations suite
-        return <Sales />;
+        return <Sales language={language} />;
       case 'reports':
-        return <Reports />;
+        return <Reports language={language} />;
       default:
         return (
           <Dashboard
@@ -144,6 +145,7 @@ export default function App() {
             onViewInvoice={(id) => {
               setCurrentTab('sales');
             }}
+            language={language}
           />
         );
     }

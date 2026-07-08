@@ -2,8 +2,13 @@ import React, { useState } from 'react';
 import { Settings, Save, RotateCcw, HelpCircle, FileText, CheckCircle, Plus, X } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
 import { Formula, FormulaHistory } from '../types';
+import { AppLanguage, getLanguageText } from '../utils/i18n';
 
-export default function FormulaSettings() {
+interface FormulaSettingsProps {
+  language?: AppLanguage;
+}
+
+export default function FormulaSettings({ language = 'en' }: FormulaSettingsProps) {
   const [formulas, setFormulas] = useState<Formula[]>(db.getFormulas());
   const [history, setHistory] = useState<FormulaHistory[]>(db.getFormulaHistory());
 
@@ -161,14 +166,14 @@ export default function FormulaSettings() {
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <Plus size={12} />
-                Add Formula
+                {getLanguageText(language, 'addFormula')}
               </button>
               <button
                 onClick={handleResetToDefaults}
                 className="bg-white hover:bg-slate-50 text-slate-600 border border-slate-100 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"
               >
                 <RotateCcw size={12} />
-                Reset Defaults
+                {getLanguageText(language, 'resetDefaults')}
               </button>
             </div>
           </div>

@@ -2,8 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { CheckSquare, ArrowRight, Eye, Clipboard, Trash2, Edit2, AlertCircle, RefreshCw, CheckCircle, HelpCircle } from 'lucide-react';
 import { db, getTodayStr, adjustMaterialStock, convertFormulaAmountToStock } from '../utils/api';
 import { FinalProduction, Formula, LabourLedgerEntry, RawMaterial, InventoryTransaction, PanniType } from '../types';
+import { AppLanguage } from '../utils/i18n';
 
-export default function FinalProductionPage() {
+interface FinalProductionPageProps {
+  language?: AppLanguage;
+}
+
+export default function FinalProductionPage({ language = 'en' }: FinalProductionPageProps) {
   const [records, setRecords] = useState<FinalProduction[]>(db.getFinalProduction());
   const [formulas] = useState<Formula[]>(db.getFormulas());
   const [materials, setMaterials] = useState<RawMaterial[]>(db.getMaterials());

@@ -2,8 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Sun, ArrowRight, Search, Trash2, Edit2, AlertCircle, FileSpreadsheet, X } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
 import { DryProduction, LabourLedgerEntry, WasteRecord } from '../types';
+import { AppLanguage } from '../utils/i18n';
 
-export default function DryProductionPage() {
+interface DryProductionPageProps {
+  language?: AppLanguage;
+}
+
+export default function DryProductionPage({ language = 'en' }: DryProductionPageProps) {
   const [records, setRecords] = useState<DryProduction[]>(db.getDryProduction());
   const latestWetProduction = [...db.getWetProduction()]
     .sort((a, b) => new Date(b.productionDate).getTime() - new Date(a.productionDate).getTime())[0];

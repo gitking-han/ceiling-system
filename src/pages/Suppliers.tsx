@@ -2,8 +2,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Users, Search, Plus, Trash2, Edit2, AlertCircle, CheckCircle, Landmark, X, ClipboardList, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { db, getTodayStr, addSupplierLedgerEntry, getSupplierOutstandingBalance, deleteSupplierLedgerByReference, refreshSuppliersFromApi, refreshSupplierLedgerFromApi } from '../utils/api';
 import { Supplier, SupplierLedgerEntry, Payment } from '../types';
+import { AppLanguage } from '../utils/i18n';
 
-export default function SuppliersPage() {
+interface SuppliersPageProps {
+  language?: AppLanguage;
+}
+
+export default function SuppliersPage({ language = 'en' }: SuppliersPageProps) {
   const [suppliers, setSuppliers] = useState<Supplier[]>(db.getSuppliers());
   const [ledger, setLedger] = useState<SupplierLedgerEntry[]>(db.getSupplierLedger());
 

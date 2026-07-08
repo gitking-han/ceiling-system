@@ -13,13 +13,15 @@ import {
   FileText
 } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
+import { AppLanguage, getLanguageText } from '../utils/i18n';
 
 interface DashboardProps {
   setCurrentTab: (tab: string) => void;
   onViewInvoice: (invoiceId: string) => void;
+  language?: AppLanguage;
 }
 
-export default function Dashboard({ setCurrentTab, onViewInvoice }: DashboardProps) {
+export default function Dashboard({ setCurrentTab, onViewInvoice, language = 'en' }: DashboardProps) {
   // Fetch data
   const materials = db.getMaterials();
   const wetProd = db.getWetProduction();
@@ -181,7 +183,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice }: DashboardPro
           className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Wet Plates Today</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{getLanguageText(language, 'wetPlatesToday')}</span>
             <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
               <Droplets size={16} />
             </div>
@@ -201,7 +203,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice }: DashboardPro
           className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Dry Plates Today</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{getLanguageText(language, 'dryPlatesToday')}</span>
             <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
               <Sun size={16} />
             </div>
@@ -221,7 +223,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice }: DashboardPro
           className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Final Plates Today</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{getLanguageText(language, 'finalPlatesToday')}</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
               <CheckSquare size={16} />
             </div>
@@ -241,7 +243,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice }: DashboardPro
           className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Raw Stock Value</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{getLanguageText(language, 'rawStockValue')}</span>
             <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 border border-violet-100 flex items-center justify-center group-hover:bg-violet-100 transition-colors">
               <Package size={16} />
             </div>
@@ -281,7 +283,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice }: DashboardPro
           className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Expenses Today</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{getLanguageText(language, 'expensesToday')}</span>
             <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center group-hover:bg-rose-100 transition-colors">
               <Receipt size={16} />
             </div>
@@ -318,7 +320,7 @@ export default function Dashboard({ setCurrentTab, onViewInvoice }: DashboardPro
         {/* Card: Profit/Loss */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Net Profit Today</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{getLanguageText(language, 'netProfitToday')}</span>
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold border ${
               netProfitToday >= 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'
             }`}>

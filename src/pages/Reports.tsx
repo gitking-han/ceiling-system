@@ -13,6 +13,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { db, getTodayStr, getCustomerOutstandingBalance } from '../utils/api';
+import { AppLanguage, getLanguageText } from '../utils/i18n';
 
 type ReportScope = 'daily' | 'weekly' | 'monthly' | 'custom';
 
@@ -52,7 +53,11 @@ function endOfMonth(dateString: string) {
   return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 }
 
-export default function ReportsPage() {
+interface ReportsPageProps {
+  language?: AppLanguage;
+}
+
+export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
   const today = getTodayStr();
   const defaultStart = today.substring(0, 8) + '01';
   const [startDate, setStartDate] = useState(defaultStart);
@@ -187,7 +192,7 @@ export default function ReportsPage() {
             }}
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer"
           >
-            <Printer size={14} /> Print Full Report
+            <Printer size={14} /> {getLanguageText(language, 'printReport')}
           </button>
         </div>
 
@@ -230,7 +235,7 @@ export default function ReportsPage() {
               <Search className="absolute inset-y-0 left-3 my-auto text-slate-400" size={14} />
               <input
                 type="text"
-                placeholder="Search entries"
+                placeholder={getLanguageText(language, 'searchEntries')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-8 pr-4 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"

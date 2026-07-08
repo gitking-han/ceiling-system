@@ -2,8 +2,13 @@ import React, { useState } from 'react';
 import { Search, Trash2, Edit2, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import { db, getTodayStr, adjustMaterialStock, convertFormulaAmountToStock } from '../utils/api';
 import { LabourLedgerEntry, Operator, WetProduction } from '../types';
+import { AppLanguage } from '../utils/i18n';
 
-export default function WetProductionPage() {
+interface WetProductionPageProps {
+  language?: AppLanguage;
+}
+
+export default function WetProductionPage({ language = 'en' }: WetProductionPageProps) {
   const [records, setRecords] = useState<WetProduction[]>(db.getWetProduction());
 
   const [date, setDate] = useState(getTodayStr());

@@ -2,8 +2,13 @@ import React, { useState } from 'react';
 import { Users, Search, Plus, Trash2, Edit2, AlertCircle, CheckCircle, FileText, Landmark, X, ArrowUpRight, ArrowDownRight, ClipboardList } from 'lucide-react';
 import { db, getTodayStr, addLedgerEntry, getCustomerOutstandingBalance, deleteLedgerByReference } from '../utils/api';
 import { Customer, CustomerLedgerEntry, Payment } from '../types';
+import { AppLanguage } from '../utils/i18n';
 
-export default function CustomersPage() {
+interface CustomersPageProps {
+  language?: AppLanguage;
+}
+
+export default function CustomersPage({ language = 'en' }: CustomersPageProps) {
   const [customers, setCustomers] = useState<Customer[]>(db.getCustomers());
   const [ledger, setLedger] = useState<CustomerLedgerEntry[]>(db.getLedger());
 

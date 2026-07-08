@@ -2,8 +2,13 @@ import React, { useState } from 'react';
 import { Trash2, AlertTriangle, Search, Filter, Calendar, BarChart3, Plus, X, ArrowDownRight, CheckCircle } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
 import { LabourLedgerEntry, WasteRecord } from '../types';
+import { AppLanguage } from '../utils/i18n';
 
-export default function WasteManagement() {
+interface WasteManagementPageProps {
+  language?: AppLanguage;
+}
+
+export default function WasteManagement({ language = 'en' }: WasteManagementPageProps) {
   const [records, setRecords] = useState<WasteRecord[]>(db.getWasteRecords());
 
   // Search/Filter states

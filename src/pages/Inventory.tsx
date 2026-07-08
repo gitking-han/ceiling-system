@@ -18,8 +18,13 @@ import {
 } from 'lucide-react';
 import { db, adjustMaterialStock, getConversionLabel, addSupplierLedgerEntry, refreshSuppliersFromApi, ensureSupplierMaterialAssociation, getTodayStr } from '../utils/api';
 import { RawMaterial, InventoryTransaction, Supplier, PanniType } from '../types';
+import { AppLanguage, getLanguageText } from '../utils/i18n';
 
-export default function Inventory() {
+interface InventoryProps {
+  language?: AppLanguage;
+}
+
+export default function Inventory({ language = 'en' }: InventoryProps) {
   const [materials, setMaterials] = useState<RawMaterial[]>(db.getMaterials());
   const [transactions, setTransactions] = useState<InventoryTransaction[]>(db.getTransactions());
 

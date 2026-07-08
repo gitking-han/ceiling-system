@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Users, Trash2, Edit2, CheckCircle, Wallet, Search, X, AlertTriangle } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
 import { LabourLedgerEntry, Operator } from '../types';
+import { AppLanguage } from '../utils/i18n';
 
 const stageOptions: Array<{ value: Operator['stage']; label: string }> = [
   { value: 'wet', label: 'Wet Production' },
@@ -10,7 +11,11 @@ const stageOptions: Array<{ value: Operator['stage']; label: string }> = [
   { value: 'waste', label: 'Waste Handling' },
 ];
 
-export default function LabourPage() {
+interface LabourPageProps {
+  language?: AppLanguage;
+}
+
+export default function LabourPage({ language = 'en' }: LabourPageProps) {
   const [operators, setOperators] = useState<Operator[]>(db.getOperators());
   const [ledger, setLedger] = useState<LabourLedgerEntry[]>(db.getLabourLedger());
   const [name, setName] = useState('');

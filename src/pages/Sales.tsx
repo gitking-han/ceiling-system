@@ -2,8 +2,13 @@ import React, { useState } from 'react';
 import { ShoppingCart, Search, Plus, Trash2, Printer, AlertCircle, CheckCircle, FileText, X, Percent, DollarSign } from 'lucide-react';
 import { db, getTodayStr, addLedgerEntry, deleteLedgerByReference } from '../utils/api';
 import { Sale, Customer } from '../types';
+import { AppLanguage, getLanguageText } from '../utils/i18n';
 
-export default function SalesPage() {
+interface SalesPageProps {
+  language?: AppLanguage;
+}
+
+export default function SalesPage({ language = 'en' }: SalesPageProps) {
   const [sales, setSales] = useState<Sale[]>(db.getSales());
   const [customers] = useState<Customer[]>(db.getCustomers());
 
@@ -152,7 +157,7 @@ export default function SalesPage() {
           <Search className="absolute inset-y-0 left-3 my-auto text-slate-400" size={14} />
           <input
             type="text"
-            placeholder="Search invoices by customer name, invoice number, or date..."
+            placeholder={getLanguageText(language, 'searchInvoices')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-800"
@@ -164,7 +169,7 @@ export default function SalesPage() {
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center justify-center gap-2 shadow-sm cursor-pointer"
         >
           <Plus size={14} />
-          Generate New Sale Invoice
+          {getLanguageText(language, 'generateInvoice')}
         </button>
       </div>
 
