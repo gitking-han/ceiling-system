@@ -133,6 +133,18 @@ export default function Inventory() {
     return persisted;
   };
 
+  const calculateAverageCostPerUnit = (existingQuantity: number, existingCostPerUnit: number, addedQuantity: number, totalCost: number) => {
+    if (addedQuantity <= 0) {
+      return existingCostPerUnit;
+    }
+    const nextQuantity = existingQuantity + addedQuantity;
+    if (nextQuantity <= 0 || totalCost <= 0) {
+      return existingCostPerUnit;
+    }
+    const previousValue = existingQuantity * existingCostPerUnit;
+    return (previousValue + totalCost) / nextQuantity;
+  };
+
   const handleCreateOrUpdatePanniType = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPanniTypeName.trim()) return;
@@ -199,7 +211,7 @@ export default function Inventory() {
     const nextPanniTypes = panniTypes.map((item) => item.id === selectedPanniType.id ? {
       ...item,
       quantity: item.quantity + panniRestockQty,
-      costPerUnit: panniRestockCost > 0 ? ((item.quantity * item.costPerUnit) + (panniRestockQty * panniRestockCost)) / (item.quantity + panniRestockQty) : item.costPerUnit,
+      costPerUnit: calculateAverageCostPerUnit(item.quantity, item.costPerUnit, panniRestockQty, panniRestockCost),
     } : item);
 
     persistPanniTypes(nextPanniTypes);
@@ -307,6 +319,21 @@ export default function Inventory() {
       restockDate,
       restockNotes || `Restocked ${restockQty} ${selectedMaterial.unit}`
     );
+
+    const updatedMaterials = db.getMaterials().map((material) => {
+      if (material.id !== selectedMaterial.id) {
+        return material;
+      }
+
+      return {
+        ...material,
+        quantity: material.quantity,
+        costPerUnit: calculateAverageCostPerUnit(selectedMaterial.quantity, selectedMaterial.costPerUnit, restockQty, restockCost),
+        updatedAt: restockDate,
+      };
+    });
+    db.saveMaterials(updatedMaterials);
+    setMaterials(updatedMaterials);
 
     let linkedSuppliers = suppliers;
     if (selectedSupplierId) {
