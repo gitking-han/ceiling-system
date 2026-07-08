@@ -12,6 +12,7 @@ import DryProduction from './pages/DryProduction';
 import FinalProduction from './pages/FinalProduction';
 import WasteManagement from './pages/WasteManagement';
 import Expenses from './pages/Expenses';
+import Labour from './pages/Labour';
 import Customers from './pages/Customers';
 import Suppliers from './pages/Suppliers';
 import Sales from './pages/Sales';
@@ -118,6 +119,8 @@ export default function App() {
         return <WasteManagement />;
       case 'expenses':
         return <Expenses />;
+      case 'labour':
+        return <Labour />;
       case 'customers':
         return <Customers />;
       case 'suppliers':

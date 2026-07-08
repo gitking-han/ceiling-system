@@ -18,6 +18,8 @@ import { SupplierLedgerEntry } from '../../src/models/SupplierLedgerEntry';
 import { Sale } from '../../src/models/Sale';
 import { Payment } from '../../src/models/Payment';
 import { PanniType } from '../../src/models/PanniType';
+import { Operator } from '../../src/models/Operator';
+import { LabourLedgerEntry } from '../../src/models/LabourLedgerEntry';
 
 const KEYS = {
   USER: 'factory_erp_user',
@@ -37,6 +39,8 @@ const KEYS = {
   SALES: 'factory_erp_sales',
   PAYMENTS: 'factory_erp_payments',
   PANNI_TYPES: 'factory_erp_panni_types',
+  OPERATORS: 'factory_erp_operators',
+  LABOUR_LEDGER: 'factory_erp_labour_ledger',
 };
 
 const MODEL_MAP: Record<string, any> = {
@@ -57,6 +61,8 @@ const MODEL_MAP: Record<string, any> = {
   [KEYS.SALES]: Sale,
   [KEYS.PAYMENTS]: Payment,
   [KEYS.PANNI_TYPES]: PanniType,
+  [KEYS.OPERATORS]: Operator,
+  [KEYS.LABOUR_LEDGER]: LabourLedgerEntry,
 };
 
 function sanitizeRawPayload(rawPayload: any) {

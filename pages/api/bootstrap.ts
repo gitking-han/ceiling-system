@@ -18,6 +18,8 @@ import { Supplier } from '../../src/models/Supplier';
 import { SupplierLedgerEntry } from '../../src/models/SupplierLedgerEntry';
 import { Sale } from '../../src/models/Sale';
 import { Payment } from '../../src/models/Payment';
+import { Operator } from '../../src/models/Operator';
+import { LabourLedgerEntry } from '../../src/models/LabourLedgerEntry';
 
 const KEYS = {
   USER: 'factory_erp_user',
@@ -36,6 +38,8 @@ const KEYS = {
   SUPPLIER_LEDGER: 'factory_erp_supplier_ledger',
   SALES: 'factory_erp_sales',
   PAYMENTS: 'factory_erp_payments',
+  OPERATORS: 'factory_erp_operators',
+  LABOUR_LEDGER: 'factory_erp_labour_ledger',
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -67,6 +71,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const supplierledgerentries = await SupplierLedgerEntry.find();
       const sales = await Sale.find();
       const payments = await Payment.find();
+      const operators = await Operator.find();
+      const labourLedger = await LabourLedgerEntry.find();
 
       return res.status(200).json({
         [KEYS.USER]: users[0] || null,
@@ -85,6 +91,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         [KEYS.SUPPLIER_LEDGER]: supplierledgerentries,
         [KEYS.SALES]: sales,
         [KEYS.PAYMENTS]: payments,
+        [KEYS.OPERATORS]: operators,
+        [KEYS.LABOUR_LEDGER]: labourLedger,
       });
     }
 
@@ -106,6 +114,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       [KEYS.SUPPLIER_LEDGER]: [],
       [KEYS.SALES]: [],
       [KEYS.PAYMENTS]: [],
+      [KEYS.OPERATORS]: [],
+      [KEYS.LABOUR_LEDGER]: [],
     });
   } catch (error: any) {
     console.error('Bootstrap API error during fetch:', error);

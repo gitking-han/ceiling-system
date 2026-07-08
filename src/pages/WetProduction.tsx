@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { Search, Trash2, Edit2, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import { db, getTodayStr, adjustMaterialStock, convertFormulaAmountToStock } from '../utils/api';
-import { WetProduction } from '../types';
+import { LabourLedgerEntry, Operator, WetProduction } from '../types';
 
 export default function WetProductionPage() {
   const [records, setRecords] = useState<WetProduction[]>(db.getWetProduction());
 
   const [date, setDate] = useState(getTodayStr());
   const [produced, setProduced] = useState<number>(1000);
+  const [selectedOperatorId, setSelectedOperatorId] = useState('');
   const [notes, setNotes] = useState('');
   const [editingRecord, setEditingRecord] = useState<WetProduction | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+
+  const operators = db.getOperators().filter((operator) => operator.stage === 'wet');
 
   const triggerToast = (msg: string) => {
     setToast(msg);
@@ -76,6 +79,10 @@ export default function WetProductionPage() {
       return;
     }
 
+    let newRecord: WetProduction;
+
+    const referenceId = editingRecord ? editingRecord.id : 'wet_' + Math.random().toString(36).substr(2, 9);
+
     if (editingRecord) {
       restorePlasterDeduction(editingRecord);
       const updated = records.map((r) =>
@@ -94,8 +101,8 @@ export default function WetProductionPage() {
       setEditingRecord(null);
       triggerToast('Wet batch record updated successfully.');
     } else {
-      const newRecord: WetProduction = {
-        id: 'wet_' + Math.random().toString(36).substr(2, 9),
+      newRecord = {
+        id: referenceId,
         productionDate: date,
         wetPlatesProduced: produced,
         plasterParisUsed: deduction.amount,
@@ -116,6 +123,32 @@ export default function WetProductionPage() {
       date,
       `Automated plaster deduction for wet production batch: ${produced} plates`
     );
+
+    if (selectedOperatorId) {
+      const operator = operators.find((item) => item.id === selectedOperatorId);
+      if (operator) {
+        const labourAmount = produced * operator.ratePerPlate;
+        const ledger = db.getLabourLedger();
+        const entry: LabourLedgerEntry = {
+          id: 'labour_' + Math.random().toString(36).substr(2, 9),
+          operatorId: operator.id,
+          operatorName: operator.name,
+          date,
+          stage: 'wet',
+          plates: produced,
+          ratePerPlate: operator.ratePerPlate,
+          amount: labourAmount,
+          type: 'earning',
+          referenceId,
+          notes: `Wet production labour for ${produced} plates`,
+          createdAt: getTodayStr(),
+        };
+        const updatedLedger = [...ledger, entry];
+        db.saveLabourLedger(updatedLedger);
+        const updatedOperators = db.getOperators().map((item) => item.id === operator.id ? { ...item, balanceDue: item.balanceDue + labourAmount } : item);
+        db.saveOperators(updatedOperators);
+      }
+    }
 
     setProduced(1000);
     setNotes('');
@@ -230,6 +263,14 @@ export default function WetProductionPage() {
               ) : (
                 <p>No plaster formula or stock entry has been configured yet.</p>
               )}
+            </div>
+
+            <div>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Operator</label>
+              <select value={selectedOperatorId} onChange={(e) => setSelectedOperatorId(e.target.value)} className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800">
+                <option value="">-- Select wet operator --</option>
+                {operators.map((operator) => <option key={operator.id} value={operator.id}>{operator.name}</option>)}
+              </select>
             </div>
 
             <div>

@@ -28,6 +28,8 @@ export default function Header({ currentTab, currentUser, onMenuToggle }: Header
         return 'Waste Tracking & Logs';
       case 'expenses':
         return 'Expense Management';
+      case 'labour':
+        return 'Labour & Operator Management';
       case 'customers':
         return 'Customer Ledgers & Directory';
       case 'sales':

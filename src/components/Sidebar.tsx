@@ -44,6 +44,7 @@ export default function Sidebar({
     { id: 'final-prod', name: 'Final Production', icon: CheckSquare },
     { id: 'waste', name: 'Waste Management', icon: Trash2 },
     { id: 'expenses', name: 'Expenses', icon: Receipt },
+    { id: 'labour', name: 'Labour', icon: Users },
     { id: 'customers', name: 'Customers', icon: Users },
     { id: 'suppliers', name: 'Suppliers', icon: Landmark },
     { id: 'sales', name: 'Sales', icon: ShoppingCart },

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Sun, ArrowRight, Search, Trash2, Edit2, AlertCircle, FileSpreadsheet, X } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
-import { DryProduction, WasteRecord } from '../types';
+import { DryProduction, LabourLedgerEntry, WasteRecord } from '../types';
 
 export default function DryProductionPage() {
   const [records, setRecords] = useState<DryProduction[]>(db.getDryProduction());
@@ -12,6 +12,7 @@ export default function DryProductionPage() {
   const [date, setDate] = useState(getTodayStr());
   const [received, setReceived] = useState<number>(latestWetProduction?.wetPlatesProduced ?? 1000);
   const [produced, setProduced] = useState<number>(980);
+  const [selectedOperatorId, setSelectedOperatorId] = useState('');
 
   useEffect(() => {
     if (latestWetProduction) {
@@ -28,6 +29,8 @@ export default function DryProductionPage() {
 
   const [error, setError] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+
+  const operators = db.getOperators().filter((operator) => operator.stage === 'dry');
 
   const triggerToast = (msg: string) => {
     setToast(msg);
@@ -103,6 +106,32 @@ export default function DryProductionPage() {
       }
     }
     db.saveWasteRecords(wasteRecords);
+
+    if (selectedOperatorId) {
+      const operator = operators.find((item) => item.id === selectedOperatorId);
+      if (operator) {
+        const labourAmount = produced * operator.ratePerPlate;
+        const ledger = db.getLabourLedger();
+        const entry: LabourLedgerEntry = {
+          id: 'labour_' + Math.random().toString(36).substr(2, 9),
+          operatorId: operator.id,
+          operatorName: operator.name,
+          date,
+          stage: 'dry',
+          plates: produced,
+          ratePerPlate: operator.ratePerPlate,
+          amount: labourAmount,
+          type: 'earning',
+          referenceId: activeId,
+          notes: `Dry production labour for ${produced} plates`,
+          createdAt: getTodayStr(),
+        };
+        const updatedLedger = [...ledger, entry];
+        db.saveLabourLedger(updatedLedger);
+        const updatedOperators = db.getOperators().map((item) => item.id === operator.id ? { ...item, balanceDue: item.balanceDue + labourAmount } : item);
+        db.saveOperators(updatedOperators);
+      }
+    }
 
     // Reset Form
     setReceived(1000);
@@ -230,6 +259,14 @@ export default function DryProductionPage() {
               <span className={`font-mono font-extrabold text-sm ${wastePlatesCalculated > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
                 {wastePlatesCalculated} pieces
               </span>
+            </div>
+
+            <div>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Operator</label>
+              <select value={selectedOperatorId} onChange={(e) => setSelectedOperatorId(e.target.value)} className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800">
+                <option value="">-- Select dry operator --</option>
+                {operators.map((operator) => <option key={operator.id} value={operator.id}>{operator.name}</option>)}
+              </select>
             </div>
 
             <div>

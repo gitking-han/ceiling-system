@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Trash2, AlertTriangle, Search, Filter, Calendar, BarChart3, Plus, X, ArrowDownRight, CheckCircle } from 'lucide-react';
 import { db, getTodayStr } from '../utils/api';
-import { WasteRecord } from '../types';
+import { LabourLedgerEntry, WasteRecord } from '../types';
 
 export default function WasteManagement() {
   const [records, setRecords] = useState<WasteRecord[]>(db.getWasteRecords());
@@ -15,9 +15,11 @@ export default function WasteManagement() {
   const [manualDate, setManualDate] = useState(getTodayStr());
   const [manualQty, setManualQty] = useState(5);
   const [manualSource, setManualSource] = useState<'wet' | 'dry' | 'manual'>('manual');
+  const [manualOperatorId, setManualOperatorId] = useState('');
   const [manualNotes, setManualNotes] = useState('');
 
   const [toast, setToast] = useState<string | null>(null);
+  const operators = db.getOperators().filter((operator) => operator.stage === 'waste');
 
   const triggerToast = (msg: string) => {
     setToast(msg);
@@ -59,12 +61,39 @@ export default function WasteManagement() {
       createdAt: getTodayStr(),
     };
 
+    if (manualOperatorId) {
+      const operator = operators.find((item) => item.id === manualOperatorId);
+      if (operator) {
+        const labourAmount = manualQty * operator.ratePerPlate;
+        const ledger = db.getLabourLedger();
+        const entry: LabourLedgerEntry = {
+          id: 'labour_' + Math.random().toString(36).substr(2, 9),
+          operatorId: operator.id,
+          operatorName: operator.name,
+          date: manualDate,
+          stage: 'waste',
+          plates: manualQty,
+          ratePerPlate: operator.ratePerPlate,
+          amount: labourAmount,
+          type: 'earning',
+          referenceId: newRecord.id,
+          notes: `Waste handling labour for ${manualQty} pieces`,
+          createdAt: getTodayStr(),
+        };
+        const updatedLedger = [...ledger, entry];
+        db.saveLabourLedger(updatedLedger);
+        const updatedOperators = db.getOperators().map((item) => item.id === operator.id ? { ...item, balanceDue: item.balanceDue + labourAmount } : item);
+        db.saveOperators(updatedOperators);
+      }
+    }
+
     const updated = [...records, newRecord];
     db.saveWasteRecords(updated);
     setRecords(updated);
 
     // Reset Form
     setManualQty(5);
+    setManualOperatorId('');
     setManualNotes('');
     setShowManualModal(false);
     triggerToast('Manual waste log added successfully.');

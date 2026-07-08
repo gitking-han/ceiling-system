@@ -103,6 +103,32 @@ export interface Expense {
   createdAt: string;
 }
 
+export interface Operator {
+  id: string;
+  name: string;
+  stage: 'wet' | 'dry' | 'final' | 'waste';
+  ratePerPlate: number;
+  balanceDue: number;
+  status: 'active' | 'inactive';
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface LabourLedgerEntry {
+  id: string;
+  operatorId: string;
+  operatorName: string;
+  date: string;
+  stage: 'wet' | 'dry' | 'final' | 'waste';
+  plates: number;
+  ratePerPlate: number;
+  amount: number;
+  type: 'earning' | 'payment';
+  referenceId: string;
+  notes: string;
+  createdAt: string;
+}
+
 export interface Supplier {
   id: string;
   name: string;

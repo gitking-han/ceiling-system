@@ -16,6 +16,8 @@ import {
   Sale,
   Payment,
   PanniType,
+  Operator,
+  LabourLedgerEntry,
 } from '../types';
 
 // Helper to get today's date in YYYY-MM-DD format
@@ -46,6 +48,8 @@ export const KEYS = {
   SALES: 'factory_erp_sales',
   PAYMENTS: 'factory_erp_payments',
   PANNI_TYPES: 'factory_erp_panni_types',
+  OPERATORS: 'factory_erp_operators',
+  LABOUR_LEDGER: 'factory_erp_labour_ledger',
 };
 
 function getStorage(): Storage | null {
@@ -457,6 +461,12 @@ export const db = {
 
   getPayments: () => getData<Payment>(KEYS.PAYMENTS),
   savePayments: (data: Payment[]) => saveData<Payment>(KEYS.PAYMENTS, data),
+
+  getOperators: () => getData<Operator>(KEYS.OPERATORS),
+  saveOperators: (data: Operator[]) => saveData<Operator>(KEYS.OPERATORS, data),
+
+  getLabourLedger: () => getData<LabourLedgerEntry>(KEYS.LABOUR_LEDGER),
+  saveLabourLedger: (data: LabourLedgerEntry[]) => saveData<LabourLedgerEntry>(KEYS.LABOUR_LEDGER, data),
 
   getPanniTypes: () => getData<PanniType>(KEYS.PANNI_TYPES),
   savePanniTypes: (data: PanniType[]) => {
