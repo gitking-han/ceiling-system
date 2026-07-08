@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { CheckSquare, ArrowRight, Eye, Clipboard, Trash2, Edit2, AlertCircle, RefreshCw, CheckCircle, HelpCircle } from 'lucide-react';
 import { db, getTodayStr, adjustMaterialStock, convertFormulaAmountToStock } from '../utils/api';
-import { FinalProduction, Formula, RawMaterial, InventoryTransaction } from '../types';
+import { FinalProduction, Formula, RawMaterial, InventoryTransaction, PanniType } from '../types';
 
 export default function FinalProductionPage() {
   const [records, setRecords] = useState<FinalProduction[]>(db.getFinalProduction());
   const [formulas] = useState<Formula[]>(db.getFormulas());
   const [materials, setMaterials] = useState<RawMaterial[]>(db.getMaterials());
+  const [panniTypes, setPanniTypes] = useState<PanniType[]>(db.getPanniTypes());
+  const [selectedPanniTypeId, setSelectedPanniTypeId] = useState('');
   const latestDryProduction = [...db.getDryProduction()]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
@@ -21,6 +23,14 @@ export default function FinalProductionPage() {
     }
   }, [latestDryProduction?.id]);
 
+  useEffect(() => {
+    const existingPanniTypes = db.getPanniTypes();
+    setPanniTypes(existingPanniTypes);
+    if (existingPanniTypes.length > 0 && !selectedPanniTypeId) {
+      setSelectedPanniTypeId(existingPanniTypes[0].id);
+    }
+  }, []);
+
   const [notes, setNotes] = useState('');
 
   // Selected Record details view
@@ -28,6 +38,8 @@ export default function FinalProductionPage() {
 
   const [error, setError] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+
+  const selectedPanniType = panniTypes.find((item) => item.id === selectedPanniTypeId) ?? null;
 
   const triggerToast = (msg: string) => {
     setToast(msg);
@@ -44,31 +56,59 @@ export default function FinalProductionPage() {
     return formulas
       .filter((form) => !form.materialName.toLowerCase().includes('plaster'))
       .map((form) => {
-      let amountNeeded = form.amount * quantity;
-      let unitUsed = form.unit;
+        let amountNeeded = form.amount * quantity;
+        let unitUsed = form.unit;
+        let availableStock = 0;
+        let hasEnough = false;
+        let displayName = form.materialName;
+        let panniTypeId: string | undefined;
 
-      // Match raw material from stock to check its unit
-      const mat = getFormulaMaterial(form);
-      if (mat) {
-        const converted = convertFormulaAmountToStock(amountNeeded, form.unit, mat);
-        amountNeeded = converted.amount;
-        unitUsed = converted.unit;
-      }
+        const normalizedName = form.materialName.toLowerCase();
+        if (normalizedName.includes('panni')) {
+          const panniStock = selectedPanniType;
+          if (panniStock) {
+            const panniMaterial: RawMaterial = {
+              id: panniStock.id,
+              name: form.materialName,
+              quantity: panniStock.quantity,
+              unit: panniStock.unit,
+              costPerUnit: panniStock.costPerUnit,
+              minThreshold: panniStock.minThreshold,
+              conversionFactor: panniStock.conversionFactor,
+              updatedAt: getTodayStr(),
+            };
+            const converted = convertFormulaAmountToStock(amountNeeded, form.unit, panniMaterial);
+            amountNeeded = converted.amount;
+            unitUsed = converted.unit;
+            availableStock = panniStock.quantity;
+            hasEnough = panniStock.quantity >= amountNeeded;
+            displayName = panniStock.name;
+            panniTypeId = panniStock.id;
+          }
+        } else {
+          const mat = getFormulaMaterial(form);
+          if (mat) {
+            const converted = convertFormulaAmountToStock(amountNeeded, form.unit, mat);
+            amountNeeded = converted.amount;
+            unitUsed = converted.unit;
+            availableStock = mat.quantity;
+            hasEnough = mat.quantity >= amountNeeded;
+          }
+        }
 
-      // Format to 3 decimal places for readability
-      amountNeeded = Math.round(amountNeeded * 1000) / 1000;
+        amountNeeded = Math.round(amountNeeded * 1000) / 1000;
 
-      return {
-        materialName: form.materialName,
-        calculatedAmount: amountNeeded,
-        unit: unitUsed,
-        availableStock: mat ? mat.quantity : 0,
-        hasEnough: mat ? mat.quantity >= amountNeeded : false,
-        // Expose formula source per plate for UI preview
-        formulaAmountPerPlate: form.amount,
-        formulaUnitPerPlate: form.unit,
-      };
-    });
+        return {
+          materialName: displayName,
+          calculatedAmount: amountNeeded,
+          unit: unitUsed,
+          availableStock,
+          hasEnough,
+          panniTypeId,
+          formulaAmountPerPlate: form.amount,
+          formulaUnitPerPlate: form.unit,
+        };
+      });
   };
 
   const previewList = getConsumptionPreview(finalProduced);
@@ -89,6 +129,10 @@ export default function FinalProductionPage() {
       setError('Final plates produced cannot exceed dry plates received.');
       return;
     }
+    if (formulas.some((form) => form.materialName.toLowerCase().includes('panni')) && !selectedPanniType) {
+      setError('Please select a panni type before saving this production batch.');
+      return;
+    }
 
     // Check if we have sufficient stock for all materials
     const previewList = getConsumptionPreview(finalProduced);
@@ -107,6 +151,7 @@ export default function FinalProductionPage() {
       materialName: p.materialName,
       calculatedAmount: p.calculatedAmount,
       unit: p.unit,
+      panniTypeId: p.panniTypeId,
     }));
 
     const newRecord: FinalProduction = {
@@ -115,6 +160,7 @@ export default function FinalProductionPage() {
       dryPlatesReceived: dryReceived,
       finalPlatesProduced: finalProduced,
       notes: notes.trim(),
+      panniType: selectedPanniType?.name,
       createdAt: getTodayStr(),
       consumptions: finalConsumptions,
     };
@@ -134,6 +180,18 @@ export default function FinalProductionPage() {
         `Automated deduction for final production run: ${finalProduced} plates (Ref: ${activeId})`
       );
     });
+
+    const updatedPanniTypes = [...panniTypes];
+    previewList
+      .filter((item) => item.panniTypeId)
+      .forEach((item) => {
+        const target = updatedPanniTypes.find((panniType) => panniType.id === item.panniTypeId);
+        if (target) {
+          target.quantity -= item.calculatedAmount;
+        }
+      });
+    db.savePanniTypes(updatedPanniTypes);
+    setPanniTypes(updatedPanniTypes);
 
     const wasteQuantity = Math.max(0, dryReceived - finalProduced);
     if (wasteQuantity > 0) {
@@ -172,14 +230,23 @@ export default function FinalProductionPage() {
     ) {
       // 1. Restore stock and clean related transaction logs
       const rawMaterials = db.getMaterials();
+      const panniStock = db.getPanniTypes();
       rec.consumptions.forEach((cons) => {
-        const mat = rawMaterials.find((m) => m.name.toLowerCase() === cons.materialName.toLowerCase());
-        if (mat) {
-          mat.quantity += cons.calculatedAmount; // Add back
-          mat.updatedAt = getTodayStr();
+        if (cons.panniTypeId) {
+          const panniType = panniStock.find((item) => item.id === cons.panniTypeId);
+          if (panniType) {
+            panniType.quantity += cons.calculatedAmount;
+          }
+        } else {
+          const mat = rawMaterials.find((m) => m.name.toLowerCase() === cons.materialName.toLowerCase());
+          if (mat) {
+            mat.quantity += cons.calculatedAmount; // Add back
+            mat.updatedAt = getTodayStr();
+          }
         }
       });
       db.saveMaterials(rawMaterials);
+      db.savePanniTypes(panniStock);
 
       // Clean transactions matching this production run ref ID
       const txs = db.getTransactions().filter((t) => !t.notes.includes(rec.id));
@@ -192,6 +259,7 @@ export default function FinalProductionPage() {
 
       // Refresh states
       setMaterials(db.getMaterials());
+      setPanniTypes(db.getPanniTypes());
       if (selectedRecord?.id === rec.id) setSelectedRecord(null);
 
       triggerToast('Production run reversed. Consumed materials restored to stock.');
@@ -286,6 +354,21 @@ export default function FinalProductionPage() {
                 placeholder="Shift summary, quality check, loader names..."
                 className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
               />
+            </div>
+
+            <div>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Panni Type for This Batch</label>
+              <select
+                value={selectedPanniTypeId}
+                onChange={(e) => setSelectedPanniTypeId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+              >
+                <option value="">-- Select panni type --</option>
+                {panniTypes.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-1">Choose the panni stock type that should be deducted for this run.</p>
             </div>
 
             <button

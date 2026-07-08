@@ -79,6 +79,7 @@ export interface FinalProduction {
     materialName: string;
     calculatedAmount: number;
     unit: string;
+    panniTypeId?: string;
   }[];
 }
 

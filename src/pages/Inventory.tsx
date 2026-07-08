@@ -11,10 +11,13 @@ import {
   History,
   AlertTriangle,
   X,
-  FileCheck
+  FileCheck,
+  ChevronDown,
+  ChevronRight,
+  Boxes
 } from 'lucide-react';
 import { db, adjustMaterialStock, getConversionLabel, addSupplierLedgerEntry, refreshSuppliersFromApi, ensureSupplierMaterialAssociation, getTodayStr } from '../utils/api';
-import { RawMaterial, InventoryTransaction, Supplier } from '../types';
+import { RawMaterial, InventoryTransaction, Supplier, PanniType } from '../types';
 
 export default function Inventory() {
   const [materials, setMaterials] = useState<RawMaterial[]>(db.getMaterials());
@@ -27,9 +30,14 @@ export default function Inventory() {
   // Modal and Form States
   const [showAddMaterialModal, setShowAddMaterialModal] = useState(false);
   const [showRestockModal, setShowRestockModal] = useState(false);
+  const [showPanniTypeModal, setShowPanniTypeModal] = useState(false);
+  const [showPanniRestockModal, setShowPanniRestockModal] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null);
+  const [selectedPanniType, setSelectedPanniType] = useState<PanniType | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>(db.getSuppliers());
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
+  const [panniTypes, setPanniTypes] = useState<PanniType[]>(db.getPanniTypes());
+  const [expandedPanni, setExpandedPanni] = useState(true);
 
   // New Material form state
   const [newMatName, setNewMatName] = useState('');
@@ -48,11 +56,44 @@ export default function Inventory() {
   // Edit Material state
   const [editingMaterial, setEditingMaterial] = useState<RawMaterial | null>(null);
 
+  // Panni type form state
+  const [newPanniTypeName, setNewPanniTypeName] = useState('Panni Type 1');
+  const [newPanniTypeUnit, setNewPanniTypeUnit] = useState('pieces');
+  const [newPanniTypeConversionFactor, setNewPanniTypeConversionFactor] = useState(1);
+  const [newPanniTypeQuantity, setNewPanniTypeQuantity] = useState(0);
+  const [newPanniTypeCost, setNewPanniTypeCost] = useState(0);
+  const [newPanniTypeThreshold, setNewPanniTypeThreshold] = useState(100);
+  const [editingPanniType, setEditingPanniType] = useState<PanniType | null>(null);
+  const [panniRestockQty, setPanniRestockQty] = useState(0);
+  const [panniRestockCost, setPanniRestockCost] = useState(0);
+  const [panniRestockDate, setPanniRestockDate] = useState(getTodayStr());
+  const [panniRestockNotes, setPanniRestockNotes] = useState('');
+
   // Notifications/Toasts helper
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     void refreshSuppliersFromApi().then(setSuppliers);
+  }, []);
+
+  useEffect(() => {
+    const existingPanniTypes = db.getPanniTypes();
+    if (existingPanniTypes.length === 0) {
+      const defaultPanniType: PanniType = {
+        id: 'pt_' + Math.random().toString(36).substr(2, 9),
+        name: 'Panni Type 1',
+        unit: 'pieces',
+        quantity: 0,
+        costPerUnit: 0,
+        minThreshold: 100,
+        conversionFactor: 1,
+        createdAt: getTodayStr(),
+      };
+      const persisted = db.savePanniTypes([defaultPanniType]);
+      setPanniTypes(persisted);
+    } else {
+      setPanniTypes(existingPanniTypes);
+    }
   }, []);
 
   const getSuggestedConversionFactor = (unit: string, name: string) => {
@@ -74,6 +115,101 @@ export default function Inventory() {
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const resetPanniForm = () => {
+    setEditingPanniType(null);
+    setNewPanniTypeName('Panni Type 1');
+    setNewPanniTypeUnit('pieces');
+    setNewPanniTypeConversionFactor(1);
+    setNewPanniTypeQuantity(0);
+    setNewPanniTypeCost(0);
+    setNewPanniTypeThreshold(100);
+  };
+
+  const persistPanniTypes = (next: PanniType[]) => {
+    const persisted = db.savePanniTypes(next);
+    setPanniTypes(persisted);
+    return persisted;
+  };
+
+  const handleCreateOrUpdatePanniType = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPanniTypeName.trim()) return;
+
+    const normalizedName = newPanniTypeName.trim();
+    const duplicate = panniTypes.find((item) => item.id !== editingPanniType?.id && item.name.toLowerCase() === normalizedName.toLowerCase());
+    if (duplicate) {
+      showToast('error', 'A panni type with this name already exists.');
+      return;
+    }
+
+    const nextPanniTypes = editingPanniType
+      ? panniTypes.map((item) => item.id === editingPanniType.id ? {
+          ...item,
+          name: normalizedName,
+          unit: newPanniTypeUnit,
+          quantity: editingPanniType.quantity + newPanniTypeQuantity,
+          costPerUnit: newPanniTypeCost > 0 ? newPanniTypeCost : item.costPerUnit,
+          minThreshold: newPanniTypeThreshold,
+          conversionFactor: newPanniTypeConversionFactor > 0 ? newPanniTypeConversionFactor : item.conversionFactor,
+        } : item)
+      : [...panniTypes, {
+          id: 'pt_' + Math.random().toString(36).substr(2, 9),
+          name: normalizedName,
+          unit: newPanniTypeUnit,
+          quantity: newPanniTypeQuantity,
+          costPerUnit: newPanniTypeCost,
+          minThreshold: newPanniTypeThreshold,
+          conversionFactor: newPanniTypeConversionFactor > 0 ? newPanniTypeConversionFactor : 1,
+          createdAt: getTodayStr(),
+        }];
+
+    persistPanniTypes(nextPanniTypes);
+    resetPanniForm();
+    setShowPanniTypeModal(false);
+    showToast('success', editingPanniType ? 'Panni type updated.' : 'Panni type created.');
+  };
+
+  const handleDeletePanniType = (id: string, name: string) => {
+    if (confirm(`Delete ${name}? This will remove the panni type from the inventory.`)) {
+      const remaining = panniTypes.filter((item) => item.id !== id);
+      if (remaining.length === 0) {
+        persistPanniTypes([{
+          id: 'pt_' + Math.random().toString(36).substr(2, 9),
+          name: 'Panni Type 1',
+          unit: 'pieces',
+          quantity: 0,
+          costPerUnit: 0,
+          minThreshold: 100,
+          conversionFactor: 1,
+          createdAt: getTodayStr(),
+        }]);
+      } else {
+        persistPanniTypes(remaining);
+      }
+      showToast('success', `${name} deleted.`);
+    }
+  };
+
+  const handleRestockPanniType = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPanniType || panniRestockQty <= 0) return;
+
+    const nextPanniTypes = panniTypes.map((item) => item.id === selectedPanniType.id ? {
+      ...item,
+      quantity: item.quantity + panniRestockQty,
+      costPerUnit: panniRestockCost > 0 ? ((item.quantity * item.costPerUnit) + (panniRestockQty * panniRestockCost)) / (item.quantity + panniRestockQty) : item.costPerUnit,
+    } : item);
+
+    persistPanniTypes(nextPanniTypes);
+    setSelectedPanniType(null);
+    setPanniRestockQty(0);
+    setPanniRestockCost(0);
+    setPanniRestockDate(getTodayStr());
+    setPanniRestockNotes('');
+    setShowPanniRestockModal(false);
+    showToast('success', `Stock added to ${selectedPanniType.name}.`);
   };
 
   // Add a brand new raw material type
@@ -208,6 +344,10 @@ export default function Inventory() {
     return matchesSearch && matchesLowStock;
   });
 
+  const visibleMaterials = filteredMaterials.filter((m) => !m.name.toLowerCase().includes('panni'));
+  const panniStockTotal = panniTypes.reduce((sum, item) => sum + item.quantity, 0);
+  const panniLow = panniTypes.some((item) => item.quantity <= item.minThreshold);
+
   return (
     <div className="space-y-6">
       {/* Toast Alert */}
@@ -251,6 +391,13 @@ export default function Inventory() {
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
+            onClick={() => setShowPanniTypeModal(true)}
+            className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
+          >
+            <Boxes size={14} />
+            Manage Panni Types
+          </button>
+          <button
             onClick={() => setShowAddMaterialModal(true)}
             className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
           >
@@ -287,71 +434,167 @@ export default function Inventory() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {filteredMaterials.length > 0 ? (
-                  filteredMaterials.map((mat) => {
-                    const isLow = mat.quantity <= mat.minThreshold;
-                    const stockValue = mat.quantity * mat.costPerUnit;
-                    return (
-                      <tr key={mat.id} className={`hover:bg-slate-50/50 transition-colors ${isLow ? 'bg-rose-50/20' : ''}`}>
-                        <td className="py-3 px-2 font-semibold">
-                          <div className="flex items-center gap-2">
-                            <span className={`w-1.5 h-1.5 rounded-full ${isLow ? 'bg-rose-500 animate-pulse' : 'bg-slate-300'}`} />
-                            <div>
-                              <p className="text-slate-800">{mat.name}</p>
-                              <p className="text-[9px] text-slate-400 font-medium mt-0.5">
-                                {getConversionLabel(mat.unit)}: {mat.conversionFactor}
-                              </p>
-                              {isLow && <span className="text-[9px] text-rose-500 font-bold uppercase tracking-wider">Critical Low</span>}
+                {visibleMaterials.length > 0 || panniTypes.length > 0 ? (
+                  <>
+                    <tr className={`hover:bg-slate-50/50 transition-colors ${panniLow ? 'bg-amber-50/20' : ''}`}>
+                      <td className="py-3 px-2 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedPanni((value) => !value)}
+                          className="flex items-center gap-2 text-left"
+                        >
+                          {expandedPanni ? <ChevronDown size={14} className="text-slate-500" /> : <ChevronRight size={14} className="text-slate-500" />}
+                          <div>
+                            <p className="text-slate-800">Panni</p>
+                            <p className="text-[9px] text-slate-400 font-medium mt-0.5">Expandable stock types for different panni varieties</p>
+                          </div>
+                        </button>
+                      </td>
+                      <td className="py-3 px-2 text-right font-mono font-bold">
+                        <span className={panniLow ? 'text-amber-600 font-extrabold' : 'text-slate-800'}>{panniStockTotal.toLocaleString()}</span>{' '}
+                        <span className="text-[10px] font-normal text-slate-400">stock units</span>
+                      </td>
+                      <td className="py-3 px-2 text-right font-mono text-slate-500">—</td>
+                      <td className="py-3 px-2 text-right font-mono font-semibold text-slate-800">—</td>
+                      <td className="py-3 px-2 text-center font-mono text-slate-400">—</td>
+                      <td className="py-3 px-2">
+                        <div className="flex items-center justify-end">
+                          <button
+                            onClick={() => setShowPanniTypeModal(true)}
+                            className="px-2 py-1 rounded text-[10px] font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all cursor-pointer"
+                          >
+                            Manage
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expandedPanni && panniTypes.map((panniType) => {
+                      const isLow = panniType.quantity <= panniType.minThreshold;
+                      const stockValue = panniType.quantity * panniType.costPerUnit;
+                      return (
+                        <tr key={panniType.id} className={`bg-slate-50/60 hover:bg-slate-100/70 transition-colors ${isLow ? 'bg-amber-50/40' : ''}`}>
+                          <td className="py-2.5 px-6 font-semibold">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-1.5 h-1.5 rounded-full ${isLow ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`} />
+                              <div>
+                                <p className="text-slate-800">{panniType.name}</p>
+                                <p className="text-[9px] text-slate-400 font-medium mt-0.5">{getConversionLabel(panniType.unit)}: {panniType.conversionFactor}</p>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-2 text-right font-mono font-bold">
-                          <span className={isLow ? 'text-rose-600 font-extrabold' : 'text-slate-800'}>
-                            {mat.quantity.toLocaleString()}
-                          </span>{' '}
-                          <span className="text-[10px] font-normal text-slate-400">{mat.unit}</span>
-                        </td>
-                        <td className="py-3 px-2 text-right font-mono text-slate-500">
-                          Rs. {mat.costPerUnit.toFixed(2)}
-                        </td>
-                        <td className="py-3 px-2 text-right font-mono font-semibold text-slate-800">
-                          Rs. {Math.round(stockValue).toLocaleString()}
-                        </td>
-                        <td className="py-3 px-2 text-center font-mono text-slate-400">
-                          {mat.minThreshold} {mat.unit}
-                        </td>
-                        <td className="py-3 px-2">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => {
-                                setSelectedMaterial(mat);
-                                setRestockCost(0);
-                                setRestockQty(0);
-                                setShowRestockModal(true);
-                              }}
-                              className="px-2 py-1 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all cursor-pointer"
-                            >
-                              Add Stock
-                            </button>
-                            <button
-                              onClick={() => setEditingMaterial(mat)}
-                              className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-50"
-                              title="Edit Threshold"
-                            >
-                              <Edit2 size={12} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteMaterial(mat.id, mat.name)}
-                              className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
-                              title="Delete Material"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
+                          </td>
+                          <td className="py-2.5 px-2 text-right font-mono font-bold">
+                            <span className={isLow ? 'text-amber-600 font-extrabold' : 'text-slate-800'}>{panniType.quantity.toLocaleString()}</span>{' '}
+                            <span className="text-[10px] font-normal text-slate-400">{panniType.unit}</span>
+                          </td>
+                          <td className="py-2.5 px-2 text-right font-mono text-slate-500">Rs. {panniType.costPerUnit.toFixed(2)}</td>
+                          <td className="py-2.5 px-2 text-right font-mono font-semibold text-slate-800">Rs. {Math.round(stockValue).toLocaleString()}</td>
+                          <td className="py-2.5 px-2 text-center font-mono text-slate-400">{panniType.minThreshold} {panniType.unit}</td>
+                          <td className="py-2.5 px-2">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setSelectedPanniType(panniType);
+                                  setPanniRestockQty(0);
+                                  setPanniRestockCost(0);
+                                  setShowPanniRestockModal(true);
+                                }}
+                                className="px-2 py-1 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all cursor-pointer"
+                              >
+                                Add Stock
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingPanniType(panniType);
+                                  setNewPanniTypeName(panniType.name);
+                                  setNewPanniTypeUnit(panniType.unit);
+                                  setNewPanniTypeConversionFactor(panniType.conversionFactor);
+                                  setNewPanniTypeQuantity(0);
+                                  setNewPanniTypeCost(panniType.costPerUnit);
+                                  setNewPanniTypeThreshold(panniType.minThreshold);
+                                  setShowPanniTypeModal(true);
+                                }}
+                                className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-50"
+                                title="Edit Panni Type"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDeletePanniType(panniType.id, panniType.name)}
+                                className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                title="Delete Panni Type"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {visibleMaterials.map((mat) => {
+                      const isLow = mat.quantity <= mat.minThreshold;
+                      const stockValue = mat.quantity * mat.costPerUnit;
+                      return (
+                        <tr key={mat.id} className={`hover:bg-slate-50/50 transition-colors ${isLow ? 'bg-rose-50/20' : ''}`}>
+                          <td className="py-3 px-2 font-semibold">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-1.5 h-1.5 rounded-full ${isLow ? 'bg-rose-500 animate-pulse' : 'bg-slate-300'}`} />
+                              <div>
+                                <p className="text-slate-800">{mat.name}</p>
+                                <p className="text-[9px] text-slate-400 font-medium mt-0.5">
+                                  {getConversionLabel(mat.unit)}: {mat.conversionFactor}
+                                </p>
+                                {isLow && <span className="text-[9px] text-rose-500 font-bold uppercase tracking-wider">Critical Low</span>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-right font-mono font-bold">
+                            <span className={isLow ? 'text-rose-600 font-extrabold' : 'text-slate-800'}>
+                              {mat.quantity.toLocaleString()}
+                            </span>{' '}
+                            <span className="text-[10px] font-normal text-slate-400">{mat.unit}</span>
+                          </td>
+                          <td className="py-3 px-2 text-right font-mono text-slate-500">
+                            Rs. {mat.costPerUnit.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-2 text-right font-mono font-semibold text-slate-800">
+                            Rs. {Math.round(stockValue).toLocaleString()}
+                          </td>
+                          <td className="py-3 px-2 text-center font-mono text-slate-400">
+                            {mat.minThreshold} {mat.unit}
+                          </td>
+                          <td className="py-3 px-2">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setSelectedMaterial(mat);
+                                  setRestockCost(0);
+                                  setRestockQty(0);
+                                  setShowRestockModal(true);
+                                }}
+                                className="px-2 py-1 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all cursor-pointer"
+                              >
+                                Add Stock
+                              </button>
+                              <button
+                                onClick={() => setEditingMaterial(mat)}
+                                className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-50"
+                                title="Edit Threshold"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteMaterial(mat.id, mat.name)}
+                                className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                title="Delete Material"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </>
                 ) : (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-slate-400">
@@ -417,6 +660,160 @@ export default function Inventory() {
           </div>
         </div>
       </div>
+
+      {showPanniTypeModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg border border-slate-100 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+              <h3 className="font-display font-bold text-slate-800 text-sm flex items-center gap-2">
+                <Boxes size={16} className="text-amber-600" />
+                Manage Panni Types
+              </h3>
+              <button onClick={() => { setShowPanniTypeModal(false); resetPanniForm(); }} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4 text-xs">
+              <form onSubmit={handleCreateOrUpdatePanniType} className="space-y-4 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-slate-700">{editingPanniType ? 'Update panni type' : 'Add new panni type'}</h4>
+                  {editingPanniType && (
+                    <button type="button" onClick={resetPanniForm} className="text-[10px] font-semibold text-slate-500">Cancel edit</button>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Panni Type Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newPanniTypeName}
+                    onChange={(e) => setNewPanniTypeName(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-white text-slate-800"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Stock Unit</label>
+                    <select
+                      value={newPanniTypeUnit}
+                      onChange={(e) => setNewPanniTypeUnit(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-white text-slate-800"
+                    >
+                      <option value="pieces">pieces</option>
+                      <option value="kg">kg</option>
+                      <option value="rolls">rolls</option>
+                      <option value="rims">rims</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Min. Alert Threshold</label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={newPanniTypeThreshold}
+                      onChange={(e) => setNewPanniTypeThreshold(parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-white text-slate-800 font-mono"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Conversion Factor</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      required
+                      value={newPanniTypeConversionFactor}
+                      onChange={(e) => setNewPanniTypeConversionFactor(parseFloat(e.target.value) || 1)}
+                      className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-white text-slate-800 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Opening Stock Qty</label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      value={newPanniTypeQuantity}
+                      onChange={(e) => setNewPanniTypeQuantity(parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-white text-slate-800 font-mono"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Cost Per Unit (Rs)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={newPanniTypeCost}
+                    onChange={(e) => setNewPanniTypeCost(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-white text-slate-800 font-mono"
+                  />
+                </div>
+                <button type="submit" className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-lg text-xs tracking-wider uppercase transition-all cursor-pointer">
+                  {editingPanniType ? 'Save Panni Type' : 'Create Panni Type'}
+                </button>
+              </form>
+
+              <div className="rounded-xl border border-slate-100 p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-slate-700">Existing Panni Types</h4>
+                  <span className="text-[10px] text-slate-400">{panniTypes.length} listed</span>
+                </div>
+                <div className="space-y-2">
+                  {panniTypes.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <div>
+                        <p className="font-semibold text-slate-800">{item.name}</p>
+                        <p className="text-[10px] text-slate-400">{item.quantity.toLocaleString()} {item.unit} • Min {item.minThreshold} {item.unit}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => {
+                            setSelectedPanniType(item);
+                            setPanniRestockQty(0);
+                            setPanniRestockCost(0);
+                            setShowPanniRestockModal(true);
+                          }}
+                          className="px-2 py-1 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all cursor-pointer"
+                        >
+                          Add Stock
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingPanniType(item);
+                            setNewPanniTypeName(item.name);
+                            setNewPanniTypeUnit(item.unit);
+                            setNewPanniTypeConversionFactor(item.conversionFactor);
+                            setNewPanniTypeQuantity(0);
+                            setNewPanniTypeCost(item.costPerUnit);
+                            setNewPanniTypeThreshold(item.minThreshold);
+                          }}
+                          className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-50"
+                          title="Edit"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                        <button
+                          onClick={() => handleDeletePanniType(item.id, item.name)}
+                          className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
+                          title="Delete"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddMaterialModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
@@ -607,6 +1004,75 @@ export default function Inventory() {
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-xs transition-all cursor-pointer"
               >
                 Save Changes
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showPanniRestockModal && selectedPanniType && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg border border-slate-100 w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+              <h3 className="font-display font-bold text-slate-800 text-sm flex items-center gap-2">
+                <Plus size={16} className="text-amber-600" />
+                Add Panni Stock
+              </h3>
+              <button onClick={() => { setShowPanniRestockModal(false); setSelectedPanniType(null); }} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleRestockPanniType} className="p-5 space-y-4 text-xs">
+              <div className="p-3 bg-amber-50/50 rounded-xl border border-amber-100/50">
+                <p className="text-slate-700 font-medium">Selected Panni Type: <span className="font-bold text-slate-900">{selectedPanniType.name}</span></p>
+                <p className="text-slate-400 mt-1 font-semibold uppercase text-[10px]">Current Quantity: <span className="font-mono text-amber-700 font-bold">{selectedPanniType.quantity} {selectedPanniType.unit}</span></p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Restock Qty ({selectedPanniType.unit})</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={panniRestockQty}
+                    onChange={(e) => setPanniRestockQty(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Inward Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={panniRestockDate}
+                    onChange={(e) => setPanniRestockDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Total Procurement Cost (Rs)</label>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={panniRestockCost}
+                  onChange={(e) => setPanniRestockCost(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Restock Notes / Memo</label>
+                <input
+                  type="text"
+                  value={panniRestockNotes}
+                  onChange={(e) => setPanniRestockNotes(e.target.value)}
+                  placeholder="e.g. Purchased new batch"
+                  className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+                />
+              </div>
+              <button type="submit" className="w-full mt-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-lg text-xs tracking-wider uppercase transition-all cursor-pointer">
+                Add Stock
               </button>
             </form>
           </div>
