@@ -121,24 +121,11 @@ export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
     return acc;
   }, {} as Record<string, number>);
   const labourCost = filteredLabour.filter((entry) => entry.type === 'earning').reduce((sum, entry) => sum + entry.amount, 0);
-  
+
   // Labour cost breakdown by stage
   const labourCostWet = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'wet').reduce((sum, entry) => sum + entry.amount, 0);
   const labourCostDry = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'dry').reduce((sum, entry) => sum + entry.amount, 0);
   const labourCostFinal = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'final').reduce((sum, entry) => sum + entry.amount, 0);
-  const labourCostPerPlate = soldQty > 0 ? labourCost / soldQty : 0;
-  
-  const stockUsedCost = filteredWet.reduce((sum, record) => {
-    const material = materials.find((item) => item.name.toLowerCase().includes('plaster'));
-    if (!material || record.plasterParisUsed <= 0) return sum;
-    return sum + record.plasterParisUsed * material.costPerUnit;
-  }, 0) + filteredFinal.reduce((sum, record) => {
-    return sum + (record.consumptions || []).reduce((consumptionSum, cons) => {
-      const material = materials.find((item) => item.name.toLowerCase() === cons.materialName.toLowerCase());
-      if (!material || !cons.calculatedAmount) return consumptionSum;
-      return consumptionSum + Number(cons.calculatedAmount) * material.costPerUnit;
-    }, 0);
-  }, 0);
 
   const totalWasteQty = filteredWaste.reduce((sum, w) => sum + w.quantity, 0);
   const wetLoss = filteredWaste.filter((w) => w.source === 'wet').reduce((sum, w) => sum + w.quantity, 0);
@@ -151,12 +138,25 @@ export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
   const totalDryReceivedToFinal = filteredFinal.reduce((sum, r) => sum + r.dryPlatesReceived, 0);
   const soldQty = filteredSales.reduce((sum, s) => sum + s.quantity, 0);
 
+  const stockUsedCost = filteredWet.reduce((sum, record) => {
+    const material = materials.find((item) => item.name.toLowerCase().includes('plaster'));
+    if (!material || record.plasterParisUsed <= 0) return sum;
+    return sum + record.plasterParisUsed * material.costPerUnit;
+  }, 0) + filteredFinal.reduce((sum, record) => {
+    return sum + (record.consumptions || []).reduce((consumptionSum, cons) => {
+      const material = materials.find((item) => item.name.toLowerCase() === cons.materialName.toLowerCase());
+      if (!material || !cons.calculatedAmount) return consumptionSum;
+      return consumptionSum + Number(cons.calculatedAmount) * material.costPerUnit;
+    }, 0);
+  }, 0);
+
   const remainingWet = Math.max(0, totalWetProduced - totalWetReceivedToDry);
   const remainingDry = Math.max(0, totalDryProduced - totalDryReceivedToFinal);
   const remainingFinal = Math.max(0, totalFinalProduced - soldQty);
 
   const revenue = netRevenue;
   const netProfit = revenue - stockUsedCost - totalExpenses - labourCost;
+  const labourCostPerPlate = soldQty > 0 ? labourCost / soldQty : 0;
   const profitPerPlate = soldQty > 0 ? netProfit / soldQty : 0;
   const totalReceivables = filteredCustomers.reduce((sum, c) => sum + getCustomerOutstandingBalance(c.id), 0);
   const procurementCost = filteredTxs.filter((t) => t.type === 'in').reduce((sum, t) => sum + t.cost, 0);
@@ -417,6 +417,7 @@ export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
               </div>
             </div>
           </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div className="rounded-xl border border-slate-200 p-4">

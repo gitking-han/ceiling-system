@@ -89,6 +89,25 @@ export default function LabourPage({ language = 'en' }: LabourPageProps) {
     setShowDeleteModal(true);
   };
 
+  const handleDeleteLedgerEntry = (entry: LabourLedgerEntry) => {
+    if (!window.confirm('Delete this labour entry?')) return;
+
+    const updatedLedger = ledger.filter((item) => item.id !== entry.id);
+    db.saveLabourLedger(updatedLedger);
+    setLedger(updatedLedger);
+
+    const updatedOperators = operators.map((item) => {
+      if (item.id !== entry.operatorId) return item;
+      if (entry.type === 'earning') {
+        return { ...item, balanceDue: Math.max(0, item.balanceDue - entry.amount) };
+      }
+      return item;
+    });
+    db.saveOperators(updatedOperators);
+    setOperators(updatedOperators);
+    triggerToast('Labour entry deleted.');
+  };
+
   const confirmDelete = () => {
     if (!deleteOperator) return;
 
@@ -294,6 +313,7 @@ export default function LabourPage({ language = 'en' }: LabourPageProps) {
                 <th className="py-3 px-2 text-right">Plates</th>
                 <th className="py-3 px-2 text-right">Amount</th>
                 <th className="py-3 px-2">Type</th>
+                <th className="py-3 px-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -305,8 +325,13 @@ export default function LabourPage({ language = 'en' }: LabourPageProps) {
                   <td className="py-3 px-2 text-right font-mono">{entry.plates}</td>
                   <td className="py-3 px-2 text-right font-mono">Rs {entry.amount}</td>
                   <td className="py-3 px-2 capitalize text-slate-600">{entry.type}</td>
+                  <td className="py-3 px-2">
+                    <button onClick={() => handleDeleteLedgerEntry(entry)} className="p-2 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600">
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
                 </tr>
-              )) : <tr><td colSpan={6} className="py-6 text-center text-slate-400">No labour entries yet.</td></tr>}
+              )) : <tr><td colSpan={7} className="py-6 text-center text-slate-400">No labour entries yet.</td></tr>}
             </tbody>
           </table>
         </div>

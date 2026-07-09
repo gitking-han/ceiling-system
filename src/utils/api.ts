@@ -733,12 +733,49 @@ export function deleteLedgerByReference(referenceId: string, customerId: string)
   recalculateCustomerLedger(customerId);
 }
 
+export function deleteCustomerLedgerEntry(entryId: string, customerId: string) {
+  const ledger = db.getLedger();
+  const entryToDelete = ledger.find((entry) => entry.id === entryId && entry.customerId === customerId);
+  const filtered = ledger.filter((entry) => !(entry.id === entryId && entry.customerId === customerId));
+  db.saveLedger(filtered);
+  if (entryToDelete) {
+    recalculateCustomerLedger(customerId);
+  }
+}
+
 // 3b. Delete Supplier Ledger entries
 export function deleteSupplierLedgerByReference(referenceId: string, supplierId: string) {
   const ledger = db.getSupplierLedger();
   const filtered = ledger.filter((l) => !(l.referenceId === referenceId && l.supplierId === supplierId));
   db.saveSupplierLedger(filtered);
   recalculateSupplierLedger(supplierId);
+}
+
+export function deleteSupplierLedgerEntry(entryId: string, supplierId: string) {
+  const ledger = db.getSupplierLedger();
+  const entryToDelete = ledger.find((entry) => entry.id === entryId && entry.supplierId === supplierId);
+  const filtered = ledger.filter((entry) => !(entry.id === entryId && entry.supplierId === supplierId));
+  db.saveSupplierLedger(filtered);
+  if (entryToDelete) {
+    recalculateSupplierLedger(supplierId);
+  }
+}
+
+export function deleteLabourLedgerEntry(entryId: string, operatorId: string) {
+  const ledger = db.getLabourLedger();
+  const entryToDelete = ledger.find((entry) => entry.id === entryId && entry.operatorId === operatorId);
+  const filtered = ledger.filter((entry) => !(entry.id === entryId && entry.operatorId === operatorId));
+  db.saveLabourLedger(filtered);
+
+  if (entryToDelete) {
+    const operators = db.getOperators();
+    const operator = operators.find((item) => item.id === operatorId);
+    if (operator) {
+      const delta = entryToDelete.type === 'earning' ? -entryToDelete.amount : entryToDelete.amount;
+      operator.balanceDue = Math.max(0, operator.balanceDue + delta);
+      db.saveOperators(operators);
+    }
+  }
 }
 
 // Get outstanding balance for customer

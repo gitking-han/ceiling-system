@@ -51,6 +51,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Expected a supplier payload or array of suppliers.' });
     }
 
+    if (req.method === 'DELETE') {
+      const { id } = req.query;
+      if (!id || typeof id !== 'string') {
+        return res.status(400).json({ error: 'Supplier id is required.' });
+      }
+
+      const deleted = await Supplier.findOneAndDelete({ id });
+      if (!deleted) {
+        return res.status(404).json({ error: 'Supplier not found.' });
+      }
+
+      return res.status(200).json({ success: true, deletedId: id });
+    }
+
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });

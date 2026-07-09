@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Users, Search, Plus, Trash2, Edit2, AlertCircle, CheckCircle, Landmark, X, ClipboardList, ArrowDownRight, ArrowUpRight } from 'lucide-react';
-import { db, getTodayStr, addSupplierLedgerEntry, getSupplierOutstandingBalance, deleteSupplierLedgerByReference, refreshSuppliersFromApi, refreshSupplierLedgerFromApi } from '../utils/api';
+import { db, getTodayStr, addSupplierLedgerEntry, getSupplierOutstandingBalance, deleteSupplierLedgerByReference, deleteSupplierLedgerEntry, refreshSuppliersFromApi, refreshSupplierLedgerFromApi } from '../utils/api';
 import { Supplier, SupplierLedgerEntry, Payment } from '../types';
 import { AppLanguage } from '../utils/i18n';
 
@@ -149,6 +149,13 @@ export default function SuppliersPage({ language = 'en' }: SuppliersPageProps) {
       if (selectedSupplierId === id) setSelectedSupplierId(null);
       triggerToast('Supplier deleted.');
     }
+  };
+
+  const handleDeleteLedgerEntry = (entry: SupplierLedgerEntry) => {
+    if (!window.confirm('Delete this supplier ledger entry?')) return;
+    deleteSupplierLedgerEntry(entry.id, entry.supplierId);
+    setLedger(db.getSupplierLedger());
+    triggerToast('Ledger entry deleted.');
   };
 
   const handleRecordPayment = (e: React.FormEvent) => {
@@ -351,6 +358,7 @@ export default function SuppliersPage({ language = 'en' }: SuppliersPageProps) {
                         <th className="py-2.5 px-2 text-right">Credit</th>
                         <th className="py-2.5 px-2 text-right">Balance</th>
                         <th className="py-2.5 px-2">Description</th>
+                        <th className="py-2.5 px-2">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-600">
@@ -383,12 +391,17 @@ export default function SuppliersPage({ language = 'en' }: SuppliersPageProps) {
                               </td>
                               <td className={`py-2.5 px-2 text-right font-mono font-bold ${ent.balance > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>Rs. {Math.round(ent.balance).toLocaleString()}</td>
                               <td className="py-2.5 px-2 text-[11px] text-slate-400 truncate" title={ent.description} style={{ maxWidth: 160 }}>{ent.description}</td>
+                              <td className="py-2.5 px-2">
+                                <button onClick={() => handleDeleteLedgerEntry(ent)} className="p-1.5 rounded text-slate-400 hover:bg-red-50 hover:text-red-600">
+                                  <Trash2 size={12} />
+                                </button>
+                              </td>
                             </tr>
                           );
                         })
                       ) : (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-slate-400">No ledger entries found.</td>
+                          <td colSpan={7} className="py-8 text-center text-slate-400">No ledger entries found.</td>
                         </tr>
                       )}
                     </tbody>

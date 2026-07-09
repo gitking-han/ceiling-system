@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Users, Search, Plus, Trash2, Edit2, AlertCircle, CheckCircle, FileText, Landmark, X, ArrowUpRight, ArrowDownRight, ClipboardList } from 'lucide-react';
-import { db, getTodayStr, addLedgerEntry, getCustomerOutstandingBalance, deleteLedgerByReference } from '../utils/api';
+import { db, getTodayStr, addLedgerEntry, getCustomerOutstandingBalance, deleteLedgerByReference, deleteCustomerLedgerEntry } from '../utils/api';
 import { Customer, CustomerLedgerEntry, Payment } from '../types';
 import { AppLanguage } from '../utils/i18n';
 
@@ -145,6 +145,13 @@ export default function CustomersPage({ language = 'en' }: CustomersPageProps) {
       if (selectedCustomerId === id) setSelectedCustomerId(null);
       triggerToast('Customer folder deleted.');
     }
+  };
+
+  const handleDeleteLedgerEntry = (entry: CustomerLedgerEntry) => {
+    if (!window.confirm('Delete this customer ledger entry?')) return;
+    deleteCustomerLedgerEntry(entry.id, entry.customerId);
+    setLedger(db.getLedger());
+    triggerToast('Ledger entry deleted.');
   };
 
   // Record a Customer Payment
@@ -367,6 +374,7 @@ export default function CustomersPage({ language = 'en' }: CustomersPageProps) {
                         <th className="py-2.5 px-2 text-right">Credit (Payments)</th>
                         <th className="py-2.5 px-2 text-right">Running Balance</th>
                         <th className="py-2.5 px-2">Description / Notes</th>
+                        <th className="py-2.5 px-2">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-600">
@@ -404,12 +412,17 @@ export default function CustomersPage({ language = 'en' }: CustomersPageProps) {
                               <td className="py-2.5 px-2 text-[11px] text-slate-400 max-w-[160px] truncate" title={ent.description}>
                                 {ent.description}
                               </td>
+                              <td className="py-2.5 px-2">
+                                <button onClick={() => handleDeleteLedgerEntry(ent)} className="p-1.5 rounded text-slate-400 hover:bg-red-50 hover:text-red-600">
+                                  <Trash2 size={12} />
+                                </button>
+                              </td>
                             </tr>
                           );
                         })
                       ) : (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-slate-400">
+                          <td colSpan={7} className="py-8 text-center text-slate-400">
                             No ledger entries found.
                           </td>
                         </tr>
