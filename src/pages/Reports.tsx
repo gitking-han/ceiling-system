@@ -121,6 +121,13 @@ export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
     return acc;
   }, {} as Record<string, number>);
   const labourCost = filteredLabour.filter((entry) => entry.type === 'earning').reduce((sum, entry) => sum + entry.amount, 0);
+  
+  // Labour cost breakdown by stage
+  const labourCostWet = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'wet').reduce((sum, entry) => sum + entry.amount, 0);
+  const labourCostDry = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'dry').reduce((sum, entry) => sum + entry.amount, 0);
+  const labourCostFinal = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'final').reduce((sum, entry) => sum + entry.amount, 0);
+  const labourCostPerPlate = soldQty > 0 ? labourCost / soldQty : 0;
+  
   const stockUsedCost = filteredWet.reduce((sum, record) => {
     const material = materials.find((item) => item.name.toLowerCase().includes('plaster'));
     if (!material || record.plasterParisUsed <= 0) return sum;
@@ -278,29 +285,29 @@ export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
             <p className="text-[9px] text-emerald-800 font-bold uppercase tracking-wider">Net Profit</p>
             <p className="font-mono text-sm font-extrabold text-emerald-700 mt-1">{formatCurrency(netProfit)}</p>
           </div>
-          <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg">
-            <p className="text-[9px] text-rose-800 font-bold uppercase tracking-wider">Total Expenses</p>
-            <p className="font-mono text-sm font-extrabold text-rose-700 mt-1">{formatCurrency(totalExpenses)}</p>
-          </div>
           <div className="p-3 bg-violet-50 border border-violet-100 rounded-lg">
-            <p className="text-[9px] text-violet-800 font-bold uppercase tracking-wider">Labour Cost</p>
-            <p className="font-mono text-sm font-extrabold text-violet-700 mt-1">{formatCurrency(labourCost)}</p>
+            <p className="text-[9px] text-violet-800 font-bold uppercase tracking-wider">Profit per Plate</p>
+            <p className="font-mono text-sm font-extrabold text-violet-700 mt-1">{formatCurrency(profitPerPlate)}</p>
+          </div>
+          <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg">
+            <p className="text-[9px] text-rose-800 font-bold uppercase tracking-wider">Stock Cost Used</p>
+            <p className="font-mono text-sm font-extrabold text-rose-700 mt-1">{formatCurrency(stockUsedCost)}</p>
           </div>
           <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
-            <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wider">Waste & Defects</p>
-            <p className="font-mono text-sm font-extrabold text-amber-700 mt-1">{totalWasteQty.toLocaleString()} pcs</p>
+            <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wider">Total Expenses</p>
+            <p className="font-mono text-sm font-extrabold text-amber-700 mt-1">{formatCurrency(totalExpenses)}</p>
+          </div>
+          <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+            <p className="text-[9px] text-indigo-800 font-bold uppercase tracking-wider">Labour Cost</p>
+            <p className="font-mono text-sm font-extrabold text-indigo-700 mt-1">{formatCurrency(labourCost)}</p>
           </div>
           <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
-            <p className="text-[9px] text-blue-800 font-bold uppercase tracking-wider">Remaining Wet Plates</p>
-            <p className="font-mono text-sm font-extrabold text-blue-700 mt-1">{remainingWet.toLocaleString()} pcs</p>
+            <p className="text-[9px] text-blue-800 font-bold uppercase tracking-wider">Labour / Plate</p>
+            <p className="font-mono text-sm font-extrabold text-blue-700 mt-1">{formatCurrency(labourCostPerPlate)}</p>
           </div>
-          <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
-            <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wider">Remaining Dry Plates</p>
-            <p className="font-mono text-sm font-extrabold text-amber-700 mt-1">{remainingDry.toLocaleString()} pcs</p>
-          </div>
-          <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
-            <p className="text-[9px] text-emerald-800 font-bold uppercase tracking-wider">Remaining Final Products</p>
-            <p className="font-mono text-sm font-extrabold text-emerald-700 mt-1">{remainingFinal.toLocaleString()} pcs</p>
+          <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+            <p className="text-[9px] text-slate-800 font-bold uppercase tracking-wider">Waste & Defects</p>
+            <p className="font-mono text-sm font-extrabold text-slate-700 mt-1">{totalWasteQty.toLocaleString()} pcs</p>
           </div>
         </div>
 
@@ -340,6 +347,60 @@ export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
 
           <div className="rounded-xl border border-slate-200 p-4">
             <div className="flex items-center gap-2 mb-3">
+              <Receipt size={16} className="text-indigo-600" />
+              <h3 className="font-display font-bold text-slate-800 text-sm">Labour Cost Breakdown</h3>
+            </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <span className="text-slate-600">Wet Production (6 Rs/plate)</span>
+                <span className="font-mono font-bold text-slate-800">{formatCurrency(labourCostWet)}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <span className="text-slate-600">Dry Production (6 Rs/plate)</span>
+                <span className="font-mono font-bold text-slate-800">{formatCurrency(labourCostDry)}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <span className="text-slate-600">Final Production (6 Rs/plate)</span>
+                <span className="font-mono font-bold text-slate-800">{formatCurrency(labourCostFinal)}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-indigo-50 px-3 py-2 border border-indigo-100 mt-2">
+                <span className="font-semibold text-indigo-700">Total Labour Cost</span>
+                <span className="font-mono font-bold text-indigo-700">{formatCurrency(labourCost)}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 border border-blue-100">
+                <span className="font-semibold text-blue-700">Labour Cost per Plate</span>
+                <span className="font-mono font-bold text-blue-700">{formatCurrency(labourCostPerPlate)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Layers size={16} className="text-emerald-600" />
+              <h3 className="font-display font-bold text-slate-800 text-sm">Production Cost Summary</h3>
+            </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <span className="text-slate-600">Stock/Material Used</span>
+                <span className="font-mono font-bold text-slate-800">{formatCurrency(stockUsedCost)}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <span className="text-slate-600">Labour (Wet+Dry+Final)</span>
+                <span className="font-mono font-bold text-slate-800">{formatCurrency(labourCost)}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <span className="text-slate-600">Operational Expenses</span>
+                <span className="font-mono font-bold text-slate-800">{formatCurrency(totalExpenses)}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 border border-slate-200 mt-2">
+                <span className="font-semibold text-slate-700">Total Cost</span>
+                <span className="font-mono font-bold text-slate-800">{formatCurrency(stockUsedCost + labourCost + totalExpenses)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
               <Receipt size={16} className="text-rose-600" />
               <h3 className="font-display font-bold text-slate-800 text-sm">Expense Ledger</h3>
             </div>
@@ -349,10 +410,13 @@ export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
                   <span className="text-slate-600">{category}</span>
                   <span className="font-mono font-bold text-slate-800">{formatCurrency(amount)}</span>
                 </div>
-              )) : <p className="text-slate-400">No expenses found in the selected range.</p>}
+              )) : <p className="text-slate-400 text-center py-2">No expenses found.</p>}
+              <div className="flex items-center justify-between rounded-lg bg-rose-50 px-3 py-2 border border-rose-100 mt-2">
+                <span className="font-semibold text-rose-700">Total Expenses</span>
+                <span className="font-mono font-bold text-rose-700">{formatCurrency(totalExpenses)}</span>
+              </div>
             </div>
           </div>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div className="rounded-xl border border-slate-200 p-4">

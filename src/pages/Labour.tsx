@@ -150,6 +150,21 @@ export default function LabourPage({ language = 'en' }: LabourPageProps) {
     triggerToast('Payment recorded.');
   };
 
+  // Calculate total plates per operator across all stages regardless of when they were created
+  const getOperatorPlatesTotals = useMemo(() => {
+    const totals: Record<string, { totalPlates: number; stageCounts: Record<string, number> }> = {};
+    operators.forEach((op) => {
+      totals[op.id] = { totalPlates: 0, stageCounts: { wet: 0, dry: 0, final: 0, waste: 0 } };
+    });
+    ledger.forEach((entry) => {
+      if (entry.type === 'earning' && totals[entry.operatorId]) {
+        totals[entry.operatorId].totalPlates += entry.plates;
+        totals[entry.operatorId].stageCounts[entry.stage] = (totals[entry.operatorId].stageCounts[entry.stage] || 0) + entry.plates;
+      }
+    });
+    return totals;
+  }, [ledger, operators]);
+
   return (
     <div className="space-y-6">
       {toast && (
@@ -206,6 +221,7 @@ export default function LabourPage({ language = 'en' }: LabourPageProps) {
                   </div>
                   <p className="text-[10px] text-slate-500 mt-1">Stage: {stageOptions.find((item) => item.value === operator.stage)?.label}</p>
                   <p className="text-[10px] text-slate-500">Rate: Rs {operator.ratePerPlate} / plate • Balance: Rs {operator.balanceDue}</p>
+                  <p className="text-[10px] text-emerald-600 font-semibold mt-1">Total Plates Created: {getOperatorPlatesTotals[operator.id]?.totalPlates.toLocaleString() || 0}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => handleEdit(operator)} className="p-2 rounded-lg text-slate-500 hover:bg-slate-50"><Edit2 size={14} /></button>
@@ -217,6 +233,47 @@ export default function LabourPage({ language = 'en' }: LabourPageProps) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-display font-bold text-slate-800 text-sm">Operator Production Summary</h3>
+            <p className="text-[11px] text-slate-400 font-medium">Total plates created by each operator across all production stages (Wet + Dry + Final = 18 Rs per plate labour cost).</p>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                <th className="py-3 px-2">Operator Name</th>
+                <th className="py-3 px-2">Stage</th>
+                <th className="py-3 px-2 text-right">Wet Plates</th>
+                <th className="py-3 px-2 text-right">Dry Plates</th>
+                <th className="py-3 px-2 text-right">Final Plates</th>
+                <th className="py-3 px-2 text-right">Total Plates</th>
+                <th className="py-3 px-2 text-right">Total Labour Cost (Rs)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {operators.length > 0 ? operators.map((operator) => {
+                const totals = getOperatorPlatesTotals[operator.id] || { totalPlates: 0, stageCounts: { wet: 0, dry: 0, final: 0, waste: 0 } };
+                const totalCost = totals.totalPlates * operator.ratePerPlate;
+                return (
+                  <tr key={operator.id} className="border-b border-slate-50">
+                    <td className="py-3 px-2 font-semibold text-slate-800">{operator.name}</td>
+                    <td className="py-3 px-2 text-slate-600">{stageOptions.find((item) => item.value === operator.stage)?.label}</td>
+                    <td className="py-3 px-2 text-right font-mono text-slate-600">{(totals.stageCounts.wet || 0).toLocaleString()}</td>
+                    <td className="py-3 px-2 text-right font-mono text-slate-600">{(totals.stageCounts.dry || 0).toLocaleString()}</td>
+                    <td className="py-3 px-2 text-right font-mono text-slate-600">{(totals.stageCounts.final || 0).toLocaleString()}</td>
+                    <td className="py-3 px-2 text-right font-mono font-semibold text-slate-800">{totals.totalPlates.toLocaleString()}</td>
+                    <td className="py-3 px-2 text-right font-mono font-semibold text-emerald-700">{totalCost.toLocaleString()}</td>
+                  </tr>
+                );
+              }) : <tr><td colSpan={7} className="py-6 text-center text-slate-400">No operators registered yet.</td></tr>}
+            </tbody>
+          </table>
         </div>
       </div>
 
