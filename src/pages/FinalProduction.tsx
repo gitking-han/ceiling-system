@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CheckSquare, ArrowRight, Eye, Clipboard, Trash2, Edit2, AlertCircle, RefreshCw, CheckCircle, HelpCircle } from 'lucide-react';
 import { db, getTodayStr, adjustMaterialStock, convertFormulaAmountToStock } from '../utils/api';
-import { FinalProduction, Formula, LabourLedgerEntry, RawMaterial, InventoryTransaction, PanniType } from '../types';
+import { FinalProduction, Formula, LabourLedgerEntry, RawMaterial, InventoryTransaction, PanniType, HdPaperType } from '../types';
 import { AppLanguage } from '../utils/i18n';
 
 interface FinalProductionPageProps {
@@ -13,7 +13,9 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
   const [formulas] = useState<Formula[]>(db.getFormulas());
   const [materials, setMaterials] = useState<RawMaterial[]>(db.getMaterials());
   const [panniTypes, setPanniTypes] = useState<PanniType[]>(db.getPanniTypes());
+  const [hdPaperTypes, setHdPaperTypes] = useState<HdPaperType[]>(db.getHdPaperTypes());
   const [selectedPanniTypeId, setSelectedPanniTypeId] = useState('');
+  const [selectedHdPaperTypeId, setSelectedHdPaperTypeId] = useState('');
   const [selectedOperatorId, setSelectedOperatorId] = useState('');
   const latestDryProduction = [...db.getDryProduction()]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
@@ -35,6 +37,12 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
     if (existingPanniTypes.length > 0 && !selectedPanniTypeId) {
       setSelectedPanniTypeId(existingPanniTypes[0].id);
     }
+
+    const existingHdPaperTypes = db.getHdPaperTypes();
+    setHdPaperTypes(existingHdPaperTypes);
+    if (existingHdPaperTypes.length > 0 && !selectedHdPaperTypeId) {
+      setSelectedHdPaperTypeId(existingHdPaperTypes[0].id);
+    }
   }, []);
 
   const [notes, setNotes] = useState('');
@@ -46,6 +54,7 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
   const [toast, setToast] = useState<string | null>(null);
 
   const selectedPanniType = panniTypes.find((item) => item.id === selectedPanniTypeId) ?? null;
+  const selectedHdPaperType = hdPaperTypes.find((item) => item.id === selectedHdPaperTypeId) ?? null;
 
   const operators = db.getOperators().filter((operator) => operator.stage === 'final');
 
@@ -70,6 +79,7 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
         let hasEnough = false;
         let displayName = form.materialName;
         let panniTypeId: string | undefined;
+        let hdPaperTypeId: string | undefined;
 
         const normalizedName = form.materialName.toLowerCase();
         if (normalizedName.includes('panni')) {
@@ -93,6 +103,27 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
             displayName = panniStock.name;
             panniTypeId = panniStock.id;
           }
+        } else if (normalizedName.includes('hd paper')) {
+          const hdPaperStock = selectedHdPaperType;
+          if (hdPaperStock) {
+            const hdPaperMaterial: RawMaterial = {
+              id: hdPaperStock.id,
+              name: form.materialName,
+              quantity: hdPaperStock.quantity,
+              unit: hdPaperStock.unit,
+              costPerUnit: hdPaperStock.costPerUnit,
+              minThreshold: hdPaperStock.minThreshold,
+              conversionFactor: hdPaperStock.conversionFactor,
+              updatedAt: getTodayStr(),
+            };
+            const converted = convertFormulaAmountToStock(amountNeeded, form.unit, hdPaperMaterial);
+            amountNeeded = converted.amount;
+            unitUsed = converted.unit;
+            availableStock = hdPaperStock.quantity;
+            hasEnough = hdPaperStock.quantity >= amountNeeded;
+            displayName = hdPaperStock.name;
+            hdPaperTypeId = hdPaperStock.id;
+          }
         } else {
           const mat = getFormulaMaterial(form);
           if (mat) {
@@ -113,6 +144,7 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
           availableStock,
           hasEnough,
           panniTypeId,
+          hdPaperTypeId,
           formulaAmountPerPlate: form.amount,
           formulaUnitPerPlate: form.unit,
         };
@@ -141,6 +173,10 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
       setError('Please select a panni type before saving this production batch.');
       return;
     }
+    if (formulas.some((form) => form.materialName.toLowerCase().includes('hd paper')) && !selectedHdPaperType) {
+      setError('Please select an HD paper type before saving this production batch.');
+      return;
+    }
 
     // Check if we have sufficient stock for all materials
     const previewList = getConsumptionPreview(finalProduced);
@@ -160,6 +196,7 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
       calculatedAmount: p.calculatedAmount,
       unit: p.unit,
       panniTypeId: p.panniTypeId,
+      hdPaperTypeId: p.hdPaperTypeId,
     }));
 
     const newRecord: FinalProduction = {
@@ -169,6 +206,7 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
       finalPlatesProduced: finalProduced,
       notes: notes.trim(),
       panniType: selectedPanniType?.name,
+      hdPaperType: selectedHdPaperType?.name,
       createdAt: getTodayStr(),
       consumptions: finalConsumptions,
     };
@@ -200,6 +238,18 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
       });
     db.savePanniTypes(updatedPanniTypes);
     setPanniTypes(updatedPanniTypes);
+
+    const updatedHdPaperTypes = [...hdPaperTypes];
+    previewList
+      .filter((item) => item.hdPaperTypeId)
+      .forEach((item) => {
+        const target = updatedHdPaperTypes.find((hdPaperType) => hdPaperType.id === item.hdPaperTypeId);
+        if (target) {
+          target.quantity -= item.calculatedAmount;
+        }
+      });
+    db.saveHdPaperTypes(updatedHdPaperTypes);
+    setHdPaperTypes(updatedHdPaperTypes);
 
     const wasteQuantity = Math.max(0, dryReceived - finalProduced);
     if (wasteQuantity > 0) {
@@ -265,11 +315,17 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
       // 1. Restore stock and clean related transaction logs
       const rawMaterials = db.getMaterials();
       const panniStock = db.getPanniTypes();
+      const hdPaperStock = db.getHdPaperTypes();
       rec.consumptions.forEach((cons) => {
         if (cons.panniTypeId) {
           const panniType = panniStock.find((item) => item.id === cons.panniTypeId);
           if (panniType) {
             panniType.quantity += cons.calculatedAmount;
+          }
+        } else if (cons.hdPaperTypeId) {
+          const hdPaperType = hdPaperStock.find((item) => item.id === cons.hdPaperTypeId);
+          if (hdPaperType) {
+            hdPaperType.quantity += cons.calculatedAmount;
           }
         } else {
           const mat = rawMaterials.find((m) => m.name.toLowerCase() === cons.materialName.toLowerCase());
@@ -281,6 +337,12 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
       });
       db.saveMaterials(rawMaterials);
       db.savePanniTypes(panniStock);
+      db.saveHdPaperTypes(hdPaperStock);
+
+      // Refresh local state after restore
+      setMaterials(db.getMaterials());
+      setPanniTypes(db.getPanniTypes());
+      setHdPaperTypes(db.getHdPaperTypes());
 
       // Clean transactions matching this production run ref ID
       const txs = db.getTransactions().filter((t) => !t.notes.includes(rec.id));
@@ -411,6 +473,21 @@ export default function FinalProductionPage({ language = 'en' }: FinalProduction
                 ))}
               </select>
               <p className="text-[10px] text-slate-400 mt-1">Choose the panni stock type that should be deducted for this run.</p>
+            </div>
+
+            <div>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">HD Paper Type for This Batch</label>
+              <select
+                value={selectedHdPaperTypeId}
+                onChange={(e) => setSelectedHdPaperTypeId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-slate-800"
+              >
+                <option value="">-- Select HD paper type --</option>
+                {hdPaperTypes.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-1">Choose the HD paper stock type that should be deducted for this run.</p>
             </div>
 
             <button

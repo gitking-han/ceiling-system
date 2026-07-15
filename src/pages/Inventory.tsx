@@ -16,8 +16,8 @@ import {
   ChevronRight,
   Boxes
 } from 'lucide-react';
-import { db, adjustMaterialStock, getConversionLabel, addSupplierLedgerEntry, refreshSuppliersFromApi, ensureSupplierMaterialAssociation, getTodayStr } from '../utils/api';
-import { RawMaterial, InventoryTransaction, Supplier, PanniType } from '../types';
+import { db, adjustMaterialStock, getConversionLabel, addSupplierLedgerEntry, refreshSuppliersFromApi, refreshHdPaperTypesFromApi, ensureSupplierMaterialAssociation, getTodayStr } from '../utils/api';
+import { RawMaterial, InventoryTransaction, Supplier, PanniType, HdPaperType } from '../types';
 import { AppLanguage, getLanguageText } from '../utils/i18n';
 
 interface InventoryProps {
@@ -37,12 +37,17 @@ export default function Inventory({ language = 'en' }: InventoryProps) {
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [showPanniTypeModal, setShowPanniTypeModal] = useState(false);
   const [showPanniRestockModal, setShowPanniRestockModal] = useState(false);
+  const [showHdPaperTypeModal, setShowHdPaperTypeModal] = useState(false);
+  const [showHdPaperRestockModal, setShowHdPaperRestockModal] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null);
   const [selectedPanniType, setSelectedPanniType] = useState<PanniType | null>(null);
+  const [selectedHdPaperType, setSelectedHdPaperType] = useState<HdPaperType | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>(db.getSuppliers());
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
   const [panniTypes, setPanniTypes] = useState<PanniType[]>(db.getPanniTypes());
+  const [hdPaperTypes, setHdPaperTypes] = useState<HdPaperType[]>(db.getHdPaperTypes());
   const [expandedPanni, setExpandedPanni] = useState(true);
+  const [expandedHdPaper, setExpandedHdPaper] = useState(true);
 
   // New Material form state
   const [newMatName, setNewMatName] = useState('');
@@ -74,6 +79,18 @@ export default function Inventory({ language = 'en' }: InventoryProps) {
   const [panniRestockDate, setPanniRestockDate] = useState(getTodayStr());
   const [panniRestockNotes, setPanniRestockNotes] = useState('');
 
+  const [newHdPaperTypeName, setNewHdPaperTypeName] = useState('HD Paper Type 1');
+  const [newHdPaperTypeUnit, setNewHdPaperTypeUnit] = useState('pieces');
+  const [newHdPaperTypeConversionFactor, setNewHdPaperTypeConversionFactor] = useState(1);
+  const [newHdPaperTypeQuantity, setNewHdPaperTypeQuantity] = useState(0);
+  const [newHdPaperTypeCost, setNewHdPaperTypeCost] = useState(0);
+  const [newHdPaperTypeThreshold, setNewHdPaperTypeThreshold] = useState(100);
+  const [editingHdPaperType, setEditingHdPaperType] = useState<HdPaperType | null>(null);
+  const [hdPaperRestockQty, setHdPaperRestockQty] = useState(0);
+  const [hdPaperRestockCost, setHdPaperRestockCost] = useState(0);
+  const [hdPaperRestockDate, setHdPaperRestockDate] = useState(getTodayStr());
+  const [hdPaperRestockNotes, setHdPaperRestockNotes] = useState('');
+
   // Notifications/Toasts helper
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -99,6 +116,32 @@ export default function Inventory({ language = 'en' }: InventoryProps) {
     } else {
       setPanniTypes(existingPanniTypes);
     }
+  }, []);
+
+  useEffect(() => {
+    const existingHdPaperTypes = db.getHdPaperTypes();
+    if (existingHdPaperTypes.length === 0) {
+      const defaultHdPaperType: HdPaperType = {
+        id: 'hdpt_' + Math.random().toString(36).substr(2, 9),
+        name: 'HD Paper Type 1',
+        unit: 'pieces',
+        quantity: 0,
+        costPerUnit: 0,
+        minThreshold: 100,
+        conversionFactor: 1,
+        createdAt: getTodayStr(),
+      };
+      const persisted = db.saveHdPaperTypes([defaultHdPaperType]);
+      setHdPaperTypes(persisted);
+    } else {
+      setHdPaperTypes(existingHdPaperTypes);
+    }
+
+    void refreshHdPaperTypesFromApi().then((apiTypes) => {
+      if (apiTypes.length > 0) {
+        setHdPaperTypes(apiTypes);
+      }
+    });
   }, []);
 
   const getSuggestedConversionFactor = (unit: string, name: string) => {
@@ -135,6 +178,22 @@ export default function Inventory({ language = 'en' }: InventoryProps) {
   const persistPanniTypes = (next: PanniType[]) => {
     const persisted = db.savePanniTypes(next);
     setPanniTypes(persisted);
+    return persisted;
+  };
+
+  const resetHdPaperForm = () => {
+    setEditingHdPaperType(null);
+    setNewHdPaperTypeName('HD Paper Type 1');
+    setNewHdPaperTypeUnit('pieces');
+    setNewHdPaperTypeConversionFactor(1);
+    setNewHdPaperTypeQuantity(0);
+    setNewHdPaperTypeCost(0);
+    setNewHdPaperTypeThreshold(100);
+  };
+
+  const persistHdPaperTypes = (next: HdPaperType[]) => {
+    const persisted = db.saveHdPaperTypes(next);
+    setHdPaperTypes(persisted);
     return persisted;
   };
 
@@ -209,6 +268,27 @@ export default function Inventory({ language = 'en' }: InventoryProps) {
     }
   };
 
+  const handleDeleteHdPaperType = (id: string, name: string) => {
+    if (confirm(`Delete ${name}? This will remove the HD paper type from the inventory.`)) {
+      const remaining = hdPaperTypes.filter((item) => item.id !== id);
+      if (remaining.length === 0) {
+        persistHdPaperTypes([{
+          id: 'hdpt_' + Math.random().toString(36).substr(2, 9),
+          name: 'HD Paper Type 1',
+          unit: 'pieces',
+          quantity: 0,
+          costPerUnit: 0,
+          minThreshold: 100,
+          conversionFactor: 1,
+          createdAt: getTodayStr(),
+        }]);
+      } else {
+        persistHdPaperTypes(remaining);
+      }
+      showToast('success', `${name} deleted.`);
+    }
+  };
+
   const handleRestockPanniType = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPanniType || panniRestockQty <= 0) return;
@@ -227,6 +307,26 @@ export default function Inventory({ language = 'en' }: InventoryProps) {
     setPanniRestockNotes('');
     setShowPanniRestockModal(false);
     showToast('success', `Stock added to ${selectedPanniType.name}.`);
+  };
+
+  const handleRestockHdPaperType = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedHdPaperType || hdPaperRestockQty <= 0) return;
+
+    const nextHdPaperTypes = hdPaperTypes.map((item) => item.id === selectedHdPaperType.id ? {
+      ...item,
+      quantity: item.quantity + hdPaperRestockQty,
+      costPerUnit: calculateAverageCostPerUnit(item.quantity, item.costPerUnit, hdPaperRestockQty, hdPaperRestockCost),
+    } : item);
+
+    persistHdPaperTypes(nextHdPaperTypes);
+    setSelectedHdPaperType(null);
+    setHdPaperRestockQty(0);
+    setHdPaperRestockCost(0);
+    setHdPaperRestockDate(getTodayStr());
+    setHdPaperRestockNotes('');
+    setShowHdPaperRestockModal(false);
+    showToast('success', `Stock added to ${selectedHdPaperType.name}.`);
   };
 
   // Add a brand new raw material type
@@ -376,9 +476,11 @@ export default function Inventory({ language = 'en' }: InventoryProps) {
     return matchesSearch && matchesLowStock;
   });
 
-  const visibleMaterials = filteredMaterials.filter((m) => !m.name.toLowerCase().includes('panni'));
+  const visibleMaterials = filteredMaterials.filter((m) => !m.name.toLowerCase().includes('panni') && !m.name.toLowerCase().includes('hd paper'));
   const panniStockTotal = panniTypes.reduce((sum, item) => sum + item.quantity, 0);
+  const hdPaperStockTotal = hdPaperTypes.reduce((sum, item) => sum + item.quantity, 0);
   const panniLow = panniTypes.some((item) => item.quantity <= item.minThreshold);
+  const hdPaperLow = hdPaperTypes.some((item) => item.quantity <= item.minThreshold);
 
   return (
     <div className="space-y-6">
@@ -428,6 +530,13 @@ export default function Inventory({ language = 'en' }: InventoryProps) {
           >
             <Boxes size={14} />
             Manage Panni Types
+          </button>
+          <button
+            onClick={() => setShowHdPaperTypeModal(true)}
+            className="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
+          >
+            <Package size={14} />
+            Manage HD Paper Types
           </button>
           <button
             onClick={() => setShowAddMaterialModal(true)}
@@ -554,6 +663,100 @@ export default function Inventory({ language = 'en' }: InventoryProps) {
                                 onClick={() => handleDeletePanniType(panniType.id, panniType.name)}
                                 className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
                                 title="Delete Panni Type"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr className={`hover:bg-slate-50/50 transition-colors ${hdPaperLow ? 'bg-slate-900/5' : ''}`}>
+                      <td className="py-3 px-2 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedHdPaper((value) => !value)}
+                          className="flex items-center gap-2 text-left"
+                        >
+                          {expandedHdPaper ? <ChevronDown size={20} className="text-slate-500" /> : <ChevronRight size={20} className="text-slate-500" />}
+                          <div>
+                            <p className="text-slate-800">HD Paper</p>
+                            <p className="text-[9px] text-slate-400 font-medium mt-0.5">Expandable stock types for different HD paper varieties</p>
+                          </div>
+                        </button>
+                      </td>
+                      <td className="py-3 px-2 text-right font-mono font-bold">
+                        <span className={hdPaperLow ? 'text-slate-900 font-extrabold' : 'text-slate-800'}>{hdPaperStockTotal.toLocaleString()}</span>{' '}
+                        <span className="text-[10px] font-normal text-slate-400">stock units</span>
+                      </td>
+                      <td className="py-3 px-2 text-right font-mono text-slate-500">—</td>
+                      <td className="py-3 px-2 text-right font-mono font-semibold text-slate-800">—</td>
+                      <td className="py-3 px-2 text-center font-mono text-slate-400">—</td>
+                      <td className="py-3 px-2">
+                        <div className="flex items-center justify-end">
+                          <button
+                            onClick={() => setShowHdPaperTypeModal(true)}
+                            className="px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all cursor-pointer"
+                          >
+                            Manage
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expandedHdPaper && hdPaperTypes.map((hdPaperType) => {
+                      const isLow = hdPaperType.quantity <= hdPaperType.minThreshold;
+                      const stockValue = hdPaperType.quantity * hdPaperType.costPerUnit;
+                      return (
+                        <tr key={hdPaperType.id} className={`bg-slate-50/60 hover:bg-slate-100/70 transition-colors ${isLow ? 'bg-slate-900/5' : ''}`}>
+                          <td className="py-2.5 px-6 font-semibold">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-1.5 h-1.5 rounded-full ${isLow ? 'bg-slate-900 animate-pulse' : 'bg-slate-300'}`} />
+                              <div>
+                                <p className="text-slate-800">{hdPaperType.name}</p>
+                                <p className="text-[9px] text-slate-400 font-medium mt-0.5">{getConversionLabel(hdPaperType.unit)}: {hdPaperType.conversionFactor}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-2 text-right font-mono font-bold">
+                            <span className={isLow ? 'text-slate-900 font-extrabold' : 'text-slate-800'}>{hdPaperType.quantity.toLocaleString()}</span>{' '}
+                            <span className="text-[10px] font-normal text-slate-400">{hdPaperType.unit}</span>
+                          </td>
+                          <td className="py-2.5 px-2 text-right font-mono text-slate-500">Rs. {hdPaperType.costPerUnit.toFixed(2)}</td>
+                          <td className="py-2.5 px-2 text-right font-mono font-semibold text-slate-800">Rs. {Math.round(stockValue).toLocaleString()}</td>
+                          <td className="py-2.5 px-2 text-center font-mono text-slate-400">{hdPaperType.minThreshold} {hdPaperType.unit}</td>
+                          <td className="py-2.5 px-2">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setSelectedHdPaperType(hdPaperType);
+                                  setHdPaperRestockQty(0);
+                                  setHdPaperRestockCost(0);
+                                  setShowHdPaperRestockModal(true);
+                                }}
+                                className="px-2 py-1 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all cursor-pointer"
+                              >
+                                Add Stock
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingHdPaperType(hdPaperType);
+                                  setNewHdPaperTypeName(hdPaperType.name);
+                                  setNewHdPaperTypeUnit(hdPaperType.unit);
+                                  setNewHdPaperTypeConversionFactor(hdPaperType.conversionFactor);
+                                  setNewHdPaperTypeQuantity(0);
+                                  setNewHdPaperTypeCost(hdPaperType.costPerUnit);
+                                  setNewHdPaperTypeThreshold(hdPaperType.minThreshold);
+                                  setShowHdPaperTypeModal(true);
+                                }}
+                                className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-50"
+                                title="Edit HD Paper Type"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteHdPaperType(hdPaperType.id, hdPaperType.name)}
+                                className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                title="Delete HD Paper Type"
                               >
                                 <Trash2 size={12} />
                               </button>

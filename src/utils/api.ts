@@ -16,6 +16,7 @@ import {
   Sale,
   Payment,
   PanniType,
+  HdPaperType,
   Operator,
   LabourLedgerEntry,
 } from '../types';
@@ -48,6 +49,7 @@ export const KEYS = {
   SALES: 'factory_erp_sales',
   PAYMENTS: 'factory_erp_payments',
   PANNI_TYPES: 'factory_erp_panni_types',
+  HD_PAPER_TYPES: 'factory_erp_hd_paper_types',
   OPERATORS: 'factory_erp_operators',
   LABOUR_LEDGER: 'factory_erp_labour_ledger',
 };
@@ -227,6 +229,53 @@ export async function syncPanniTypesToApi(panniTypes: PanniType[]): Promise<Pann
   } catch (error) {
     console.error('Failed to sync panni types to API:', error);
     return panniTypes;
+  }
+}
+
+export async function refreshHdPaperTypesFromApi(): Promise<HdPaperType[]> {
+  if (typeof window === 'undefined') {
+    return getData<HdPaperType>(KEYS.HD_PAPER_TYPES);
+  }
+
+  try {
+    const response = await fetch('/api/ledger-types', { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error('Unable to load HD paper types from the API');
+    }
+
+    const payload = await response.json();
+    const types = Array.isArray(payload) ? payload : [];
+    const storage = getStorage();
+    if (storage) {
+      storage.setItem(KEYS.HD_PAPER_TYPES, JSON.stringify(types));
+    }
+    return types;
+  } catch (error) {
+    console.error('Failed to refresh HD paper types from API:', error);
+    return getData<HdPaperType>(KEYS.HD_PAPER_TYPES);
+  }
+}
+
+export async function syncHdPaperTypesToApi(hdPaperTypes: HdPaperType[]): Promise<HdPaperType[]> {
+  if (typeof window === 'undefined') {
+    return hdPaperTypes;
+  }
+
+  try {
+    const response = await fetch('/api/ledger-types', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(hdPaperTypes),
+    });
+
+    if (!response.ok) {
+      throw new Error('Unable to sync HD paper types to the API');
+    }
+
+    return hdPaperTypes;
+  } catch (error) {
+    console.error('Failed to sync HD paper types to API:', error);
+    return hdPaperTypes;
   }
 }
 
@@ -472,6 +521,13 @@ export const db = {
   savePanniTypes: (data: PanniType[]) => {
     saveData<PanniType>(KEYS.PANNI_TYPES, data);
     void syncPanniTypesToApi(data);
+    return data;
+  },
+
+  getHdPaperTypes: () => getData<HdPaperType>(KEYS.HD_PAPER_TYPES),
+  saveHdPaperTypes: (data: HdPaperType[]) => {
+    saveData<HdPaperType>(KEYS.HD_PAPER_TYPES, data);
+    void syncHdPaperTypesToApi(data);
     return data;
   },
 };

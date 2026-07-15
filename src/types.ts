@@ -17,6 +17,24 @@ export interface RawMaterial {
   updatedAt: string;
 }
 
+export interface FinalProduction {
+  id: string;
+  date: string;
+  dryPlatesReceived: number;
+  finalPlatesProduced: number;
+  notes?: string;
+  panniType?: string;
+  hdPaperType?: string;
+  createdAt: string;
+  consumptions: {
+    materialName: string;
+    calculatedAmount: number;
+    unit: string;
+    panniTypeId?: string;
+    hdPaperTypeId?: string;
+  }[];
+}
+
 export interface InventoryTransaction {
   id: string;
   materialId: string;
@@ -65,22 +83,6 @@ export interface DryProduction {
   wastePlates: number; // Auto calculated: Received - Produced
   notes?: string;
   createdAt: string;
-}
-
-export interface FinalProduction {
-  id: string;
-  date: string;
-  dryPlatesReceived: number;
-  finalPlatesProduced: number;
-  notes?: string;
-  panniType?: string;
-  createdAt: string;
-  consumptions: {
-    materialName: string;
-    calculatedAmount: number;
-    unit: string;
-    panniTypeId?: string;
-  }[];
 }
 
 export interface WasteRecord {
@@ -140,6 +142,17 @@ export interface Supplier {
 }
 
 export interface PanniType {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  costPerUnit: number;
+  minThreshold: number;
+  conversionFactor: number;
+  createdAt: string;
+}
+
+export interface HdPaperType {
   id: string;
   name: string;
   unit: string;
