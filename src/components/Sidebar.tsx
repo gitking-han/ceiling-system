@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import {
   LayoutDashboard,
   Package,
@@ -71,13 +72,13 @@ export default function Sidebar({
         }`}
       >
         {/* Header logo */}
-        <div className="flex items-center justify-between px-6 h-16 border-b border-slate-200">
+        <div className="flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg font-display shadow-sm shadow-indigo-100">
-              P
+            <div className="relative w-12 h-12 overflow-hidden rounded-lg bg-slate-100 border border-slate-200">
+              <Image src="/logo.png" alt="PlatePro logo" width={48} height={48} className="object-contain mt-2" />
             </div>
             <div>
-              <h1 className="font-display font-bold text-slate-900 text-sm tracking-tight leading-tight">PlatePro ERP</h1>
+              <h1 className="font-display font-bold text-slate-900 text-sm tracking-tight leading-tight">Alif Traders</h1>
               <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">{getLanguageText(language, 'productionHub')}</p>
             </div>
           </div>
