@@ -19,6 +19,7 @@ import {
 import { db, adjustMaterialStock, getConversionLabel, addSupplierLedgerEntry, refreshSuppliersFromApi, refreshHdPaperTypesFromApi, ensureSupplierMaterialAssociation, getTodayStr } from '../utils/api';
 import { RawMaterial, InventoryTransaction, Supplier, PanniType, HdPaperType } from '../types';
 import { AppLanguage, getLanguageText } from '../utils/i18n';
+import InventoryHdPaperModals from './InventoryHdPaperModals';
 
 interface InventoryProps {
   language?: AppLanguage;
@@ -245,6 +246,44 @@ export default function Inventory({ language = 'en' }: InventoryProps) {
     resetPanniForm();
     setShowPanniTypeModal(false);
     showToast('success', editingPanniType ? 'Panni type updated.' : 'Panni type created.');
+  };
+
+  const handleCreateOrUpdateHdPaperType = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHdPaperTypeName.trim()) return;
+
+    const normalizedName = newHdPaperTypeName.trim();
+    const duplicate = hdPaperTypes.find((item) => item.id !== editingHdPaperType?.id && item.name.toLowerCase() === normalizedName.toLowerCase());
+    if (duplicate) {
+      showToast('error', 'An HD paper type with this name already exists.');
+      return;
+    }
+
+    const nextHdPaperTypes = editingHdPaperType
+      ? hdPaperTypes.map((item) => item.id === editingHdPaperType.id ? {
+          ...item,
+          name: normalizedName,
+          unit: newHdPaperTypeUnit,
+          quantity: editingHdPaperType.quantity + newHdPaperTypeQuantity,
+          costPerUnit: newHdPaperTypeCost > 0 ? newHdPaperTypeCost : item.costPerUnit,
+          minThreshold: newHdPaperTypeThreshold,
+          conversionFactor: newHdPaperTypeConversionFactor > 0 ? newHdPaperTypeConversionFactor : item.conversionFactor,
+        } : item)
+      : [...hdPaperTypes, {
+          id: 'hdpt_' + Math.random().toString(36).substr(2, 9),
+          name: normalizedName,
+          unit: newHdPaperTypeUnit,
+          quantity: newHdPaperTypeQuantity,
+          costPerUnit: newHdPaperTypeCost,
+          minThreshold: newHdPaperTypeThreshold,
+          conversionFactor: newHdPaperTypeConversionFactor > 0 ? newHdPaperTypeConversionFactor : 1,
+          createdAt: getTodayStr(),
+        }];
+
+    persistHdPaperTypes(nextHdPaperTypes);
+    resetHdPaperForm();
+    setShowHdPaperTypeModal(false);
+    showToast('success', editingHdPaperType ? 'HD paper type updated.' : 'HD paper type created.');
   };
 
   const handleDeletePanniType = (id: string, name: string) => {
@@ -1313,6 +1352,41 @@ export default function Inventory({ language = 'en' }: InventoryProps) {
           </div>
         </div>
       )}
+
+      <InventoryHdPaperModals
+        showHdPaperTypeModal={showHdPaperTypeModal}
+        setShowHdPaperTypeModal={setShowHdPaperTypeModal}
+        showHdPaperRestockModal={showHdPaperRestockModal}
+        setShowHdPaperRestockModal={setShowHdPaperRestockModal}
+        selectedHdPaperType={selectedHdPaperType}
+        setSelectedHdPaperType={setSelectedHdPaperType}
+        newHdPaperTypeName={newHdPaperTypeName}
+        setNewHdPaperTypeName={setNewHdPaperTypeName}
+        newHdPaperTypeUnit={newHdPaperTypeUnit}
+        setNewHdPaperTypeUnit={setNewHdPaperTypeUnit}
+        newHdPaperTypeConversionFactor={newHdPaperTypeConversionFactor}
+        setNewHdPaperTypeConversionFactor={setNewHdPaperTypeConversionFactor}
+        newHdPaperTypeQuantity={newHdPaperTypeQuantity}
+        setNewHdPaperTypeQuantity={setNewHdPaperTypeQuantity}
+        newHdPaperTypeCost={newHdPaperTypeCost}
+        setNewHdPaperTypeCost={setNewHdPaperTypeCost}
+        newHdPaperTypeThreshold={newHdPaperTypeThreshold}
+        setNewHdPaperTypeThreshold={setNewHdPaperTypeThreshold}
+        editingHdPaperType={editingHdPaperType}
+        resetHdPaperForm={resetHdPaperForm}
+        handleCreateOrUpdateHdPaperType={handleCreateOrUpdateHdPaperType}
+        hdPaperTypes={hdPaperTypes}
+        setEditingHdPaperType={setEditingHdPaperType}
+        hdPaperRestockQty={hdPaperRestockQty}
+        setHdPaperRestockQty={setHdPaperRestockQty}
+        hdPaperRestockCost={hdPaperRestockCost}
+        setHdPaperRestockCost={setHdPaperRestockCost}
+        hdPaperRestockDate={hdPaperRestockDate}
+        setHdPaperRestockDate={setHdPaperRestockDate}
+        hdPaperRestockNotes={hdPaperRestockNotes}
+        setHdPaperRestockNotes={setHdPaperRestockNotes}
+        handleRestockHdPaperType={handleRestockHdPaperType}
+      />
 
       {/* MODAL 3: Inward Restock Quantity */}
       {showRestockModal && selectedMaterial && (
