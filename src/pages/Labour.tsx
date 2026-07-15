@@ -20,7 +20,7 @@ export default function LabourPage({ language = 'en' }: LabourPageProps) {
   const [ledger, setLedger] = useState<LabourLedgerEntry[]>(db.getLabourLedger());
   const [name, setName] = useState('');
   const [stage, setStage] = useState<Operator['stage']>('wet');
-  const [ratePerPlate, setRatePerPlate] = useState(6);
+  const [ratePerPlate, setRatePerPlate] = useState(18);
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -74,7 +74,7 @@ export default function LabourPage({ language = 'en' }: LabourPageProps) {
 
     setName('');
     setStage('wet');
-    setRatePerPlate(6);
+    setRatePerPlate(18);
   };
 
   const handleEdit = (operator: Operator) => {
@@ -259,7 +259,7 @@ export default function LabourPage({ language = 'en' }: LabourPageProps) {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-display font-bold text-slate-800 text-sm">Operator Production Summary</h3>
-            <p className="text-[11px] text-slate-400 font-medium">Total plates created by each operator across all production stages (Wet + Dry + Final = 18 Rs per plate labour cost).</p>
+            <p className="text-[11px] text-slate-400 font-medium">Total plates created by each operator across all production stages; profit reports use the effective final-plate labour basis of Rs. 18 per plate.</p>
           </div>
         </div>
         <div className="overflow-x-auto">

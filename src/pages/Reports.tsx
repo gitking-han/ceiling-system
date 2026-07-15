@@ -18,7 +18,7 @@ import { AppLanguage, getLanguageText } from '../utils/i18n';
 type ReportScope = 'daily' | 'weekly' | 'monthly' | 'custom';
 
 function formatCurrency(value: number) {
-  return `Rs. ${Math.round(value).toLocaleString()}`;
+  return `Rs. ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatDateInput(date: Date) {
@@ -120,13 +120,6 @@ export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
     acc[e.category] = (acc[e.category] || 0) + e.amount;
     return acc;
   }, {} as Record<string, number>);
-  const labourCost = filteredLabour.filter((entry) => entry.type === 'earning').reduce((sum, entry) => sum + entry.amount, 0);
-
-  // Labour cost breakdown by stage
-  const labourCostWet = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'wet').reduce((sum, entry) => sum + entry.amount, 0);
-  const labourCostDry = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'dry').reduce((sum, entry) => sum + entry.amount, 0);
-  const labourCostFinal = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'final').reduce((sum, entry) => sum + entry.amount, 0);
-
   const totalWasteQty = filteredWaste.reduce((sum, w) => sum + w.quantity, 0);
   const wetLoss = filteredWaste.filter((w) => w.source === 'wet').reduce((sum, w) => sum + w.quantity, 0);
   const dryLoss = filteredWaste.filter((w) => w.source === 'dry').reduce((sum, w) => sum + w.quantity, 0);
@@ -137,6 +130,28 @@ export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
   const totalWetReceivedToDry = filteredDry.reduce((sum, r) => sum + r.wetPlatesReceived, 0);
   const totalDryReceivedToFinal = filteredFinal.reduce((sum, r) => sum + r.dryPlatesReceived, 0);
   const soldQty = filteredSales.reduce((sum, s) => sum + s.quantity, 0);
+
+  const effectiveBaseUnits = Math.max(totalFinalProduced, soldQty, 1);
+  const standardLabourRatePerPlate = 18;
+  const rawLabourCost = filteredLabour.filter((entry) => entry.type === 'earning').reduce((sum, entry) => {
+    const labourValue = entry.plates > 0 ? entry.plates * (entry.ratePerPlate || 0) : entry.amount;
+    return sum + labourValue;
+  }, 0);
+
+  // Labour cost breakdown by stage
+  const labourCostWet = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'wet').reduce((sum, entry) => {
+    const labourValue = entry.plates > 0 ? entry.plates * (entry.ratePerPlate || 0) : entry.amount;
+    return sum + labourValue;
+  }, 0);
+  const labourCostDry = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'dry').reduce((sum, entry) => {
+    const labourValue = entry.plates > 0 ? entry.plates * (entry.ratePerPlate || 0) : entry.amount;
+    return sum + labourValue;
+  }, 0);
+  const labourCostFinal = filteredLabour.filter((entry) => entry.type === 'earning' && entry.stage === 'final').reduce((sum, entry) => {
+    const labourValue = entry.plates > 0 ? entry.plates * (entry.ratePerPlate || 0) : entry.amount;
+    return sum + labourValue;
+  }, 0);
+  const labourCost = Math.min(rawLabourCost, effectiveBaseUnits * standardLabourRatePerPlate);
 
   const stockUsedCost = filteredWet.reduce((sum, record) => {
     const material = materials.find((item) => item.name.toLowerCase().includes('plaster'));
@@ -156,8 +171,8 @@ export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
 
   const revenue = netRevenue;
   const netProfit = revenue - stockUsedCost - totalExpenses - labourCost;
-  const labourCostPerPlate = soldQty > 0 ? labourCost / soldQty : 0;
-  const profitPerPlate = soldQty > 0 ? netProfit / soldQty : 0;
+  const labourCostPerPlate = effectiveBaseUnits > 0 ? labourCost / effectiveBaseUnits : 0;
+  const profitPerPlate = effectiveBaseUnits > 0 ? netProfit / effectiveBaseUnits : 0;
   const totalReceivables = filteredCustomers.reduce((sum, c) => sum + getCustomerOutstandingBalance(c.id), 0);
   const procurementCost = filteredTxs.filter((t) => t.type === 'in').reduce((sum, t) => sum + t.cost, 0);
 
@@ -352,15 +367,15 @@ export default function ReportsPage({ language = 'en' }: ReportsPageProps) {
             </div>
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                <span className="text-slate-600">Wet Production (6 Rs/plate)</span>
+                <span className="text-slate-600">Wet Production (18 Rs/plate)</span>
                 <span className="font-mono font-bold text-slate-800">{formatCurrency(labourCostWet)}</span>
               </div>
               <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                <span className="text-slate-600">Dry Production (6 Rs/plate)</span>
+                <span className="text-slate-600">Dry Production (18 Rs/plate)</span>
                 <span className="font-mono font-bold text-slate-800">{formatCurrency(labourCostDry)}</span>
               </div>
               <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                <span className="text-slate-600">Final Production (6 Rs/plate)</span>
+                <span className="text-slate-600">Final Production (18 Rs/plate)</span>
                 <span className="font-mono font-bold text-slate-800">{formatCurrency(labourCostFinal)}</span>
               </div>
               <div className="flex items-center justify-between rounded-lg bg-indigo-50 px-3 py-2 border border-indigo-100 mt-2">
